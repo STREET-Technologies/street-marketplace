@@ -127,6 +127,7 @@ test("product details retain variant identity and unknown stock, dropping untrus
     id: productId,
     title: "Coat",
     description: "Soft cotton.\nMachine washable.",
+    options: [{ name: " Size ", secret: "SECRET" }, { name: "" }, null],
     images: [
       { src: "https://cdn.example/coat.jpg" },
       { src: "data:text/html,bad" },
@@ -144,6 +145,7 @@ test("product details retain variant identity and unknown stock, dropping untrus
     vendor: { token: "SECRET" },
   });
   assert.equal(product.description, "Soft cotton.\nMachine washable.");
+  assert.deepEqual(product.optionNames, ["Size"]);
   assert.deepEqual(product.variants[0], {
     id: "44166662783110",
     title: "XS",

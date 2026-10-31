@@ -1,9 +1,10 @@
+import { CustomerPage } from "../../components/customer-page";
 import Saved from "../../components/saved";
 import "./style.css";
 export default function SavedPage() {
   return (
-    <main className="frame saved-main" id="main">
+    <CustomerPage title="Favourites">
       <Saved />
-    </main>
+    </CustomerPage>
   );
 }

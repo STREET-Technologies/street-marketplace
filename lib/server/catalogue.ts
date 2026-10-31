@@ -170,6 +170,12 @@ export function productDetailFrom(value: unknown): ProductDetail {
     id: required(p.id),
     title: required(p.title),
     description: text(p.description)?.trim() || null,
+    optionNames: Array.isArray(p.options)
+      ? p.options.flatMap((value) => {
+          const name = text(object(value).name)?.trim();
+          return name ? [name] : [];
+        })
+      : [],
     images: p.images
       .map((v) => image(object(v).src))
       .filter((v): v is string => Boolean(v)),

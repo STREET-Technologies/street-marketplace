@@ -2,7 +2,7 @@ export default function NavigationIcon({
   name,
   filled = false,
 }: {
-  name: "profile" | "heart" | "bag" | "location" | "search";
+  name: "profile" | "heart" | "bag" | "location" | "search" | "store";
   filled?: boolean;
 }) {
   return (
@@ -21,6 +21,12 @@ export default function NavigationIcon({
         <>
           <circle cx="12" cy="7" r="3.5" />
           <path d="M4 21v-2a8 8 0 0 1 16 0v2Z" />
+        </>
+      )}
+      {name === "store" && (
+        <>
+          <path d="M3 10h18l-2-6H5l-2 6Z" />
+          <path d="M4 10v11h16V10M9 21v-7h6v7M3 10c0 3 4 3 4 0 0 3 5 3 5 0 0 3 5 3 5 0 0 3 4 3 4 0" />
         </>
       )}
       {name === "heart" && (

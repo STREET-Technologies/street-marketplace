@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CustomerEmptyState, CustomerSignIn } from "./customer-page";
 import { FavouriteButton } from "./customer-context";
 import { useEffect, useState } from "react";
 import type { Favourites, SavedItem, SavedPage } from "../lib/contracts";
@@ -47,10 +48,15 @@ function Collection({
         <span>{collection.total} saved</span>
       </div>
       {!collection.total ? (
-        <p>
-          You haven’t saved any{" "}
-          {kind === "products" ? "products" : "shop locations"} yet.
-        </p>
+        <CustomerEmptyState
+          icon={kind === "products" ? "heart" : "store"}
+          title={kind === "products" ? "No products saved" : "No stores saved"}
+          message={
+            kind === "products"
+              ? "Products you save will appear here."
+              : "Stores you save will appear here."
+          }
+        />
       ) : (
         <>
           <div className="saved-grid">
@@ -107,9 +113,9 @@ function Collection({
             <p>No saved items on this page. Return to the previous page.</p>
           )}
           {collection.totalPages > 1 && (
-            <nav className="saved-pagination" aria-label={`${title} pages`}>
+            <nav className="catalogue-pagination" aria-label={`${title} pages`}>
               <button
-                className="secondary"
+                className="secondary pagination-previous"
                 disabled={collection.page <= 1}
                 onClick={() => onPage(collection.page - 1)}
               >
@@ -119,7 +125,7 @@ function Collection({
                 Page {collection.page} of {collection.totalPages}
               </span>
               <button
-                className="secondary"
+                className="secondary pagination-next"
                 disabled={collection.page >= collection.totalPages}
                 onClick={() => onPage(collection.page + 1)}
               >
@@ -135,6 +141,9 @@ function Collection({
 
 export default function Saved() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [collection, setCollection] = useState<"products" | "shops">(
+    "products",
+  );
   const [productsPage, setProductsPage] = useState(1);
   const [shopsPage, setShopsPage] = useState(1);
   const [revision, setRevision] = useState(0);
@@ -186,54 +195,54 @@ export default function Saved() {
   }, [productsPage, shopsPage, revision]);
   return (
     <>
-      <div className="saved-title">
-        <div>
-          <h1>Your favourites.</h1>
-          <p>The products and shop locations saved to your STREET account.</p>
+      {(state.status === "ready" || state.status === "error") && (
+        <div className="customer-toolbar">
+          <div
+            className="saved-collection-switch"
+            role="group"
+            aria-label="Favourite collections"
+          >
+            <button
+              aria-pressed={collection === "products"}
+              onClick={() => setCollection("products")}
+            >
+              Products
+            </button>
+            <button
+              aria-pressed={collection === "shops"}
+              onClick={() => setCollection("shops")}
+            >
+              Stores
+            </button>
+          </div>
+          <button
+            className="secondary"
+            onClick={() => setRevision((value) => value + 1)}
+          >
+            Refresh
+          </button>
         </div>
-        <button
-          className="secondary"
-          disabled={state.status === "loading"}
-          onClick={() => setRevision((value) => value + 1)}
-        >
-          Refresh
-        </button>
-      </div>
+      )}
       {state.status === "loading" && (
         <p role="status">Loading your saved items…</p>
       )}
       {state.status === "signed-out" && (
-        <div className="saved-message">
-          <h2>Keep your favourites together.</h2>
-          <p>Sign in with the same phone number you use in the app.</p>
-          <Link className="primary" href="/account">
-            Sign in to STREET
-          </Link>
-        </div>
+        <CustomerSignIn
+          icon="heart"
+          title="Save your favourites"
+          message="Sign in to keep track of the stores and items you love."
+        />
       )}
       {state.status === "error" && (
         <p role="alert">{state.message} Use Refresh to try again.</p>
       )}
       {state.status === "ready" && (
-        <>
-          <Collection
-            title="Products"
-            kind="products"
-            collection={state.data.products}
-            onPage={setProductsPage}
-          />
-          <Collection
-            title="Shops"
-            kind="shops"
-            collection={state.data.shops}
-            onPage={setShopsPage}
-          />
-          <p className="saved-note">
-            Saved items are shared with the app. Choose a shop location to
-            browse current products and availability. Purchasing is not enabled
-            yet.
-          </p>
-        </>
+        <Collection
+          title={collection === "products" ? "Products" : "Stores"}
+          kind={collection}
+          collection={state.data[collection]}
+          onPage={collection === "products" ? setProductsPage : setShopsPage}
+        />
       )}
     </>
   );

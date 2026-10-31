@@ -1,5 +1,7 @@
 "use client";
 import NavigationIcon from "./navigation-icon";
+import { productOptionPrompt } from "../lib/product-presentation";
+import { CustomerEmptyState, CustomerSignIn } from "./customer-page";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type {
@@ -234,7 +236,7 @@ export function AddToBag({
   }
   if (state.status === "guest")
     return (
-      <Link className="primary wide" href="/account">
+      <Link className="primary primary--lime wide" href="/account">
         Sign in to add to bag
       </Link>
     );
@@ -246,7 +248,7 @@ export function AddToBag({
         onClick={() => submit()}
       >
         {!variant
-          ? "Choose a variant"
+          ? productOptionPrompt(product.optionNames)
           : unavailable
             ? "Currently unavailable"
             : "Add to bag"}
@@ -341,18 +343,11 @@ export default function Bag() {
   const data = result?.data;
   if (state.status === "guest")
     return (
-      <section className="section">
-        <h1>Your bag.</h1>
-        <p>Sign in to use your STREET bag on this browser.</p>
-        <Link className="primary" href="/account">
-          Sign in
-        </Link>
-      </section>
+      <CustomerSignIn icon="bag" title="Your bag is empty" message="Sign in to add items to your bag." />
     );
   if (state.status === "error")
     return (
-      <section className="section">
-        <h1>Your bag.</h1>
+      <section className="customer-panel">
         <p role="alert">
           Your account could not be loaded. Reload the page to try again.
         </p>
@@ -361,22 +356,17 @@ export default function Bag() {
   if (!ready) return <p role="status">Loading your bag…</p>;
   if (!cart?.lines.length)
     return (
-      <section className="section">
-        <h1>Your bag is empty.</h1>
-        <p>Choose a shop and find something you like.</p>
-        <Link className="primary" href="/?view=shops">
-          Browse shops
-        </Link>
-      </section>
+      <CustomerEmptyState icon="bag" title="Your bag is empty" message="Browse the stores near you and add something you love.">
+        <Link className="primary" href="/?view=shops">Start Shopping</Link>
+      </CustomerEmptyState>
     );
   return (
-    <section className="section cart-page">
+    <section className="cart-page">
       <div className="section-heading">
         <div>
-          <h1>In the bag.</h1>
+          <h2>{cart.shopName}</h2>
           <p>
-            {cart.shopName}
-            {cart.branch ? ` · ${cart.branch}` : ""}
+            {cart.branch}
           </p>
         </div>
         <Link className="text-link" href="/?view=shops">

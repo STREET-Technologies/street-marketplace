@@ -1,6 +1,11 @@
 "use client";
-import { stockLabel } from "../lib/product-presentation";
+import {
+  stockLabel,
+  productOptionPrompt,
+  productPriceSummary,
+} from "../lib/product-presentation";
 import { AddToBag } from "./cart";
+import { CustomerEmptyState } from "./customer-page";
 import { FavouriteButton, useCustomer } from "./customer-context";
 import { readAccountData } from "../lib/client/session";
 
@@ -17,6 +22,12 @@ import type {
 import { areas } from "../model.mjs";
 
 type Params = Record<string, string>;
+function clearFilters(params: Params) {
+  const next = { ...params };
+  for (const key of ["category", "productType", "query", "page"])
+    delete next[key];
+  return next;
+}
 function href(params: Params) {
   return "/?" + new URLSearchParams(params);
 }
@@ -109,7 +120,7 @@ function Pagination({
     <nav className="catalogue-pagination" aria-label="Results pages">
       {page > 1 && (
         <Link
-          className="secondary"
+          className="secondary pagination-previous"
           href={href({ ...params, page: String(page - 1) })}
         >
           Previous
@@ -120,7 +131,7 @@ function Pagination({
       </span>
       {page < totalPages && (
         <Link
-          className="secondary"
+          className="secondary pagination-next"
           href={href({ ...params, page: String(page + 1) })}
         >
           Next
@@ -218,10 +229,28 @@ function Shops({
               className="shop-card"
               key={outlet.vendorId + outlet.outletId}
             >
-              <Photo src={outlet.image} />
+              {outlet.locationGid && outlet.outletId ? (
+                <Link
+                  className="shop-image-link"
+                  href={href(destination)}
+                  aria-label={`Explore ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""}`}
+                >
+                  <Photo src={outlet.image} />
+                </Link>
+              ) : (
+                <Photo src={outlet.image} />
+              )}
               <div>
                 <div className="shop-heading">
-                  <h3>{outlet.name}</h3>
+                  <h3>
+                    {outlet.locationGid && outlet.outletId ? (
+                      <Link className="shop-name-link" href={href(destination)}>
+                        {outlet.name}
+                      </Link>
+                    ) : (
+                      outlet.name
+                    )}
+                  </h3>
                   <ShopLogo src={outlet.logo} />
                 </div>
                 <p>
@@ -278,16 +307,34 @@ function Shops({
         })}
       </div>
       {!outlets.length && (
-        <p className="catalogue-message">
-          {params.vendorId
-            ? "This saved shop location is not listed on this page. Try another page, or browse the available shops."
-            : params.category
-              ? "No shops in this category were found for this location."
-              : selected || coordinates
-                ? "No shops were found near this location. Choose another location in the menu above."
-                : "No shops are available on this page."}{" "}
-          <Link href={href({ view: "shops" })}>Browse shops</Link>
-        </p>
+        <CustomerEmptyState
+          icon="store"
+          title="No shops found"
+          message={
+            params.vendorId
+              ? "This saved shop location isn’t listed here. Browse the available shops to keep exploring."
+              : params.category
+                ? "No shops in this category were found for this location."
+                : "Try another location from the location menu above, or explore a neighbourhood."
+          }
+        >
+          <Link
+            className="primary"
+            href={href(
+              params.category || page > 1
+                ? clearFilters(params)
+                : { view: params.vendorId ? "shops" : "neighbourhoods" },
+            )}
+          >
+            {params.category
+              ? "Clear filters"
+              : page > 1
+                ? "Back to first page"
+                : params.vendorId
+                  ? "Browse shops"
+                  : "Explore neighbourhoods"}
+          </Link>
+        </CustomerEmptyState>
       )}
       {!preview && (
         <Pagination
@@ -296,7 +343,6 @@ function Shops({
           params={params}
         />
       )}
-
     </>
   );
 }
@@ -621,19 +667,25 @@ function Products({
       {!state.data ? (
         <LoadMessage {...state} />
       ) : state.data.requiresLocation ? (
-        <p className="catalogue-message">
-          Choose a saved address or use your current location in the location
-          menu above to find products nearby, or{" "}
-          <Link href={href({ view: "shops" })}>
-            browse shops without sharing your location
+        <CustomerEmptyState
+          icon="location"
+          title="Find products near you"
+          message="Choose a saved address or use your current location from the location menu above."
+        >
+          <Link className="primary" href={href({ view: "shops" })}>
+            Browse shops
           </Link>
-          .
-        </p>
+        </CustomerEmptyState>
       ) : state.data.outOfDeliveryArea ? (
-        <p className="catalogue-message">
-          No participating shop locations were found near this location. You can
-          still <Link href={href({ view: "shops" })}>browse the shops</Link>.
-        </p>
+        <CustomerEmptyState
+          icon="store"
+          title="No shops nearby"
+          message="Try another location from the location menu above, or explore a neighbourhood."
+        >
+          <Link className="primary" href={href({ view: "neighbourhoods" })}>
+            Explore neighbourhoods
+          </Link>
+        </CustomerEmptyState>
       ) : (
         <>
           <div className="results-bar">
@@ -641,9 +693,31 @@ function Products({
           </div>
           <ProductGrid products={state.data.products} context={params} />
           {!state.data.products.length && (
-            <p className="catalogue-message">
-              No products found. Try a different search or another shop.
-            </p>
+            <CustomerEmptyState
+              icon="search"
+              title="No products found"
+              message={
+                !search && (params.query || params.productType)
+                  ? "Try clearing your filters to see more products."
+                  : "Try another search or shop to find something you love."
+              }
+            >
+              <Link
+                className="primary"
+                href={href(
+                  !search &&
+                    (params.query || params.productType || state.data.page > 1)
+                    ? clearFilters(params)
+                    : { view: "shops" },
+                )}
+              >
+                {!search && (params.query || params.productType)
+                  ? "Clear filters"
+                  : !search && state.data.page > 1
+                    ? "Back to first page"
+                    : "Browse shops"}
+              </Link>
+            </CustomerEmptyState>
           )}
           <Pagination
             page={state.data.page}
@@ -714,7 +788,7 @@ function ProductOverlay({
           <path d="m6 6 12 12M6 18 18 6" />
         </svg>
       </button>
-      <Product params={params} overlay />
+      <Product params={params} overlay onShopNavigate={onClose} />
     </dialog>
   );
 }
@@ -856,9 +930,11 @@ function ProductGallery({
 function Product({
   params,
   overlay = false,
+  onShopNavigate,
 }: {
   params: Params;
   overlay?: boolean;
+  onShopNavigate?: () => void;
 }) {
   const query = new URLSearchParams({
     kind: "product",
@@ -869,6 +945,7 @@ function Product({
   const state = useData<ProductDetail>(`/api/catalogue/browse?${query}`);
   const [variantId, selectVariant] = useState("");
   const product = state.data;
+  const priceSummary = productPriceSummary(product?.variants ?? []);
   const selected = product?.variants.find((v) => v.id === variantId);
   const back: Params = { ...params, view: "catalogue" };
   delete back.productId;
@@ -885,7 +962,15 @@ function Product({
         <div className="product-detail">
           <ProductGallery images={product.images} title={product.title} />
           <div className="detail-copy">
-            <p>{[params.shop, params.branch].filter(Boolean).join(" · ")}</p>
+            <Link
+              className="text-link product-shop-link"
+              href={href(back)}
+              onNavigate={onShopNavigate}
+            >
+              {[params.shop, params.branch].filter(Boolean).join(" · ") ||
+                "Browse this shop"}{" "}
+              <span aria-hidden="true">→</span>
+            </Link>
             <div className="product-title-row">
               {overlay ? <h2>{product.title}</h2> : <h1>{product.title}</h1>}
               <FavouriteButton
@@ -901,15 +986,13 @@ function Product({
             <p className="detail-price">
               {selected
                 ? money(selected.price)
-                : product.variants.some((v) => v.price !== null)
-                  ? `From ${money(Math.min(...product.variants.map((v) => v.price ?? Infinity)))}`
-                  : "Price unavailable"}
+                : `${priceSummary.from ? "From " : ""}${money(priceSummary.price)}`}
             </p>
             {product.description && (
               <p className="product-description">{product.description}</p>
             )}
             <fieldset>
-              <legend>Choose a variant to see its availability</legend>
+              <legend>{productOptionPrompt(product.optionNames)}</legend>
               <div className="sizes">
                 {product.variants.map((v) => (
                   <button
@@ -925,9 +1008,7 @@ function Product({
               </div>
             </fieldset>
             <p role="status" className="stock-status">
-              {selected
-                ? stockLabel(selected.inventory)
-                : "Select a variant above."}
+              {selected ? stockLabel(selected.inventory) : ""}
             </p>
             <AddToBag
               outlet={{
@@ -939,9 +1020,6 @@ function Product({
               product={product}
               variant={selected}
             />
-            <Link className="text-link product-shop-link" href={href(back)}>
-              See more from this shop →
-            </Link>
           </div>
         </div>
       )}
@@ -1033,7 +1111,6 @@ function Hero() {
             >
               <source src="/assets/product-editorial.mp4" type="video/mp4" />
             </video>
-
           </>
         )}
       </div>
@@ -1044,62 +1121,80 @@ function Hero() {
           aria-label={paused ? "Play video" : "Pause video"}
           onClick={() => setPaused((v) => !v)}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            {paused ? <path d="M8 5v14l11-7Z" /> : <path d="M6 5h4v14H6zM14 5h4v14h-4z" />}
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            {paused ? (
+              <path d="M8 5v14l11-7Z" />
+            ) : (
+              <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+            )}
           </svg>
         </button>
       )}
     </section>
   );
 }
-function AreaCards({ exclude, carousel = false }: { exclude?: string; carousel?: boolean }) {
+function AreaCards({
+  exclude,
+  carousel = false,
+}: {
+  exclude?: string;
+  carousel?: boolean;
+}) {
   const track = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
   useEffect(() => {
     const element = track.current;
     if (!carousel || !element) return;
-    const update = () => setEdges({ start: element.scrollLeft <= 1, end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1 });
+    const update = () =>
+      setEdges({
+        start: element.scrollLeft <= 1,
+        end:
+          element.scrollLeft + element.clientWidth >= element.scrollWidth - 1,
+      });
     const observer = new ResizeObserver(update);
     observer.observe(element);
     element.addEventListener("scroll", update, { passive: true });
     update();
-    return () => { observer.disconnect(); element.removeEventListener("scroll", update); };
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("scroll", update);
+    };
   }, [carousel]);
   const move = (direction: number) => {
     const element = track.current;
     if (!element) return;
     const gap = parseFloat(getComputedStyle(element).columnGap);
     const pageWidth = element.clientWidth + gap;
-    element.scrollTo({ left: (Math.round(element.scrollLeft / pageWidth) + direction) * pageWidth, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    element.scrollTo({
+      left:
+        (Math.round(element.scrollLeft / pageWidth) + direction) * pageWidth,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    });
   };
   return (
     <>
-    {carousel && <div className="section-heading area-carousel-heading">
-      <h2>Every street has a story.</h2>
-      <div className="area-carousel-controls" aria-label="Neighbourhood carousel controls">
-        <button aria-label="Previous neighbourhoods" aria-controls="discover-neighbourhoods" disabled={edges.start} onClick={() => move(-1)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg></button>
-        <button aria-label="Next neighbourhoods" aria-controls="discover-neighbourhoods" disabled={edges.end} onClick={() => move(1)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m10 5 7 7-7 7" /></svg></button>
-      </div>
-    </div>}
-    <div ref={track} id={carousel ? "discover-neighbourhoods" : undefined} className={`area-grid${carousel ? " area-carousel" : ""}`} role={carousel ? "region" : undefined} aria-label={carousel ? "Explore neighbourhoods" : undefined}>
-
-      {areas.map((a, i) =>
-        a.name === exclude ? null : (
-          <Link
-            className="area-card"
-            key={a.name}
-            href={href({ view: "area", area: String(i) })}
+      {carousel && (
+        <div className="section-heading area-carousel-heading">
+          <h2>Every street has a story.</h2>
+          <div
+            className="area-carousel-controls"
+            aria-label="Neighbourhood carousel controls"
           >
-            <img
-              src={"/assets/" + a.image}
-              alt={`A view of ${a.name}`}
-              loading="lazy"
-            />
-            <div>
-              <h3>{a.name}</h3>
-              <span className="area-description">{a.line}</span>
+            <button
+              aria-label="Previous neighbourhoods"
+              aria-controls="discover-neighbourhoods"
+              disabled={edges.start}
+              onClick={() => move(-1)}
+            >
               <svg
-                className="area-arrow"
                 width="20"
                 height="20"
                 viewBox="0 0 24 24"
@@ -1108,13 +1203,69 @@ function AreaCards({ exclude, carousel = false }: { exclude?: string; carousel?:
                 strokeWidth="1.8"
                 aria-hidden="true"
               >
-                <path d="M4 12h16m-6-6 6 6-6 6" />
+                <path d="m14 5-7 7 7 7" />
               </svg>
-            </div>
-          </Link>
-        ),
+            </button>
+            <button
+              aria-label="Next neighbourhoods"
+              aria-controls="discover-neighbourhoods"
+              disabled={edges.end}
+              onClick={() => move(1)}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <path d="m10 5 7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
       )}
-    </div>
+      <div
+        ref={track}
+        id={carousel ? "discover-neighbourhoods" : undefined}
+        className={`area-grid${carousel ? " area-carousel" : ""}`}
+        role={carousel ? "region" : undefined}
+        aria-label={carousel ? "Explore neighbourhoods" : undefined}
+      >
+        {areas.map((a, i) =>
+          a.name === exclude ? null : (
+            <Link
+              className="area-card"
+              key={a.name}
+              href={href({ view: "area", area: String(i) })}
+            >
+              <img
+                src={"/assets/" + a.image}
+                alt={`A view of ${a.name}`}
+                loading="lazy"
+              />
+              <div>
+                <h3>{a.name}</h3>
+                <span className="area-description">{a.line}</span>
+                <svg
+                  className="area-arrow"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M4 12h16m-6-6 6 6-6 6" />
+                </svg>
+              </div>
+            </Link>
+          ),
+        )}
+      </div>
     </>
   );
 }
@@ -1218,7 +1369,6 @@ export default function Marketplace() {
           </section>
         )}
       </main>
-
     </>
   );
 }

@@ -7,3 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Cross-platform experience
+
+Follow the standing cross-platform design rule in `../AGENTS.md`. For Profile,
+Favourites and Bag, reuse `components/customer-page.tsx` and the shared navigation
+icons. The mobile reference is `street-client-app`'s `EmptyStatePrompt` and
+`GuestSignInPrompt`; check their current copy before introducing new empty states.

@@ -72,6 +72,7 @@ export interface ProductPage {
   outOfDeliveryArea: boolean;
 }
 export interface ProductDetail {
+  optionNames?: string[];
   id: string;
   title: string;
   description: string | null;
