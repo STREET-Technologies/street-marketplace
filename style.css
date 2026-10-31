@@ -994,8 +994,10 @@ legend {
   font-size: 14px;
 }
 .sizes .selected {
-  background: var(--ink);
-  color: var(--cream);
+  background: var(--lime);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .inline-error {
   font-size: 11px;
@@ -3029,4 +3031,33 @@ a.area-card,
 .shop-name-link:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.product-options > fieldset + fieldset,
+.product-options > p + fieldset,
+.product-options > fieldset + p {
+  margin-top: 24px;
+}
+.product-option-fixed {
+  font-size: 14px;
+  margin: 0;
+}
+.product-option-fixed span {
+  font-weight: 600;
+}
+.sizes .option-unavailable {
+  position: relative;
+  background: var(--sand);
+  color: var(--muted);
+  text-decoration: none;
+}
+.option-strike {
+  position: absolute;
+  inset: 6px;
+  width: calc(100% - 12px);
+  height: calc(100% - 12px);
+  stroke: currentColor;
+  stroke-width: 1px;
+  opacity: 0.5;
+  pointer-events: none;
 }

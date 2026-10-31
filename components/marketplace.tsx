@@ -1,9 +1,12 @@
 "use client";
+import { stockLabel, productPriceSummary } from "../lib/product-presentation";
+import { ProductOptions } from "./product-options";
 import {
-  stockLabel,
-  productOptionPrompt,
-  productPriceSummary,
-} from "../lib/product-presentation";
+  buildOptionModel,
+  defaultOptions,
+  selectedOptionVariant,
+  type OptionSelection,
+} from "../lib/product-options";
 import { AddToBag } from "./cart";
 import { CustomerEmptyState } from "./customer-page";
 import { FavouriteButton, useCustomer } from "./customer-context";
@@ -11,7 +14,7 @@ import { readAccountData } from "../lib/client/session";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   OutletCard,
   ProductCard,
@@ -943,10 +946,29 @@ function Product({
     locationGid: params.locationGid || "",
   });
   const state = useData<ProductDetail>(`/api/catalogue/browse?${query}`);
-  const [variantId, selectVariant] = useState("");
+  const [choice, setChoice] = useState<{
+    key: string;
+    values: OptionSelection;
+    variantId: string;
+  }>({ key: "", values: {}, variantId: "" });
   const product = state.data;
+  const model = useMemo(
+    () => (product ? buildOptionModel(product) : null),
+    [product],
+  );
+  const choiceKey = query.toString();
+  const values = model
+    ? {
+        ...defaultOptions(model),
+        ...(choice.key === choiceKey ? choice.values : {}),
+      }
+    : {};
+  const variantId = choice.key === choiceKey ? choice.variantId : "";
   const priceSummary = productPriceSummary(product?.variants ?? []);
-  const selected = product?.variants.find((v) => v.id === variantId);
+  const selected = model
+    ? selectedOptionVariant(model, values)
+    : (product?.variants.find((v) => v.id === variantId) ??
+      (product?.variants.length === 1 ? product.variants[0] : undefined));
   const back: Params = { ...params, view: "catalogue" };
   delete back.productId;
   return (
@@ -991,22 +1013,18 @@ function Product({
             {product.description && (
               <p className="product-description">{product.description}</p>
             )}
-            <fieldset>
-              <legend>{productOptionPrompt(product.optionNames)}</legend>
-              <div className="sizes">
-                {product.variants.map((v) => (
-                  <button
-                    key={v.id}
-                    aria-pressed={variantId === v.id}
-                    className={variantId === v.id ? "selected" : ""}
-                    onClick={() => selectVariant(v.id)}
-                  >
-                    {v.title}
-                    {v.inventory === 0 ? " · Out of stock" : ""}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+            <ProductOptions
+              product={product}
+              model={model}
+              values={values}
+              selected={selected}
+              onOptions={(values) =>
+                setChoice({ key: choiceKey, values, variantId: "" })
+              }
+              onVariant={(variantId) =>
+                setChoice({ key: choiceKey, values: {}, variantId })
+              }
+            />
             <p role="status" className="stock-status">
               {selected ? stockLabel(selected.inventory) : ""}
             </p>

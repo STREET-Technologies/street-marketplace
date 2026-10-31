@@ -170,10 +170,14 @@ export function productDetailFrom(value: unknown): ProductDetail {
     id: required(p.id),
     title: required(p.title),
     description: text(p.description)?.trim() || null,
-    optionNames: Array.isArray(p.options)
+    options: Array.isArray(p.options)
       ? p.options.flatMap((value) => {
           const name = text(object(value).name)?.trim();
-          return name ? [name] : [];
+          const rawValues = object(value).values;
+          const values = Array.isArray(rawValues)
+            ? rawValues.map((v) => text(object(v).value) ?? "")
+            : [];
+          return [{ name: name ?? "", values }];
         })
       : [],
     images: p.images

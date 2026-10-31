@@ -113,3 +113,7 @@ Nearby shops (TT-520): Shop all and Discover use saved-address or device coordin
 
 
 Neighbourhood editorial MVP (2026-10-31): Marylebone, Notting Hill and Soho are joined by King’s Road, Kensington High Street and Battersea Power Station, using existing street.london guide imagery for the additions. Shared area cards omit the currently viewed area while retaining their original route indices. Responsive hero/card imagery and text spacing are consistent, and Browse STREET shops sits after the introductory copy and opens the general directory. No area-specific retailer coverage is implied. Branch membership/geographic boundaries are parked in TT-522 pending team feedback; no backend model changed.
+
+### Device location postcode
+
+Set server-only `MAPBOX_ACCESS_TOKEN` locally and in Vercel to enable the postcode label for “Use my current location”. Reuses STREET's Mapbox integration; `/api/location/postcode` validates same-origin coordinates and returns only a UK postcode. The lookup is temporary, not persisted. Missing postcode/token or provider failure keeps “Current location”; discovery continues using the original coordinates. Saved addresses retain their own postcode.

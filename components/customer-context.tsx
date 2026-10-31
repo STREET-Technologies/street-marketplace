@@ -36,6 +36,7 @@ type State = {
 export type Coordinates = { latitude: number; longitude: number };
 type Context = {
   coordinates: Coordinates | null;
+  currentPostcode: string | null;
   useDeviceLocation: (coordinates: Coordinates) => void;
   state: State;
   selected: SavedAddress | null;
@@ -54,6 +55,34 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [addressId, setAddressId] = useState<string | null>(null);
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [postcodeResult, setPostcodeResult] = useState<{
+    coordinates: Coordinates;
+    postcode: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!coordinates) return;
+    const controller = new AbortController();
+    fetch("/api/location/postcode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(coordinates),
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!controller.signal.aborted)
+          setPostcodeResult({
+            coordinates,
+            postcode: typeof data?.postcode === "string" ? data.postcode : null,
+          });
+      })
+      .catch(() => {
+        /* Coordinates remain usable if the label lookup fails. */
+      });
+    return () => controller.abort();
+  }, [coordinates]);
+
   const [pending, setPending] = useState<string | null>(null);
   const needsRefresh = useRef(false);
   const epoch = useRef(0),
@@ -177,6 +206,10 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         state,
         selected,
         coordinates,
+        currentPostcode:
+          postcodeResult?.coordinates === coordinates
+            ? postcodeResult.postcode
+            : null,
         select: (id) => {
           setCoordinates(null);
           setAddressId(id);

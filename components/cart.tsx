@@ -248,7 +248,11 @@ export function AddToBag({
         onClick={() => submit()}
       >
         {!variant
-          ? productOptionPrompt(product.optionNames)
+          ? productOptionPrompt(
+              product.options
+                ?.filter((o) => o.values.length > 1)
+                .map((o) => o.name),
+            )
           : unavailable
             ? "Currently unavailable"
             : "Add to bag"}
@@ -343,7 +347,11 @@ export default function Bag() {
   const data = result?.data;
   if (state.status === "guest")
     return (
-      <CustomerSignIn icon="bag" title="Your bag is empty" message="Sign in to add items to your bag." />
+      <CustomerSignIn
+        icon="bag"
+        title="Your bag is empty"
+        message="Sign in to add items to your bag."
+      />
     );
   if (state.status === "error")
     return (
@@ -356,8 +364,14 @@ export default function Bag() {
   if (!ready) return <p role="status">Loading your bag…</p>;
   if (!cart?.lines.length)
     return (
-      <CustomerEmptyState icon="bag" title="Your bag is empty" message="Browse the stores near you and add something you love.">
-        <Link className="primary" href="/?view=shops">Start Shopping</Link>
+      <CustomerEmptyState
+        icon="bag"
+        title="Your bag is empty"
+        message="Browse the stores near you and add something you love."
+      >
+        <Link className="primary" href="/?view=shops">
+          Start Shopping
+        </Link>
       </CustomerEmptyState>
     );
   return (
@@ -365,9 +379,7 @@ export default function Bag() {
       <div className="section-heading">
         <div>
           <h2>{cart.shopName}</h2>
-          <p>
-            {cart.branch}
-          </p>
+          <p>{cart.branch}</p>
         </div>
         <Link className="text-link" href="/?view=shops">
           Keep browsing →

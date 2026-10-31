@@ -1,3 +1,4 @@
+import { locationPostcode } from "./location-postcode.ts";
 import { cartIntentFrom, checkCart } from "./cart-check.ts";
 import { favouriteTarget, uuid } from "./customer-data.ts";
 import { catalogueQuery } from "./catalogue.ts";
@@ -359,6 +360,34 @@ export async function handleCartCheck(request: NextRequest, api: StreetApi) {
     return json(
       await checkCart(cartIntentFrom(await smallJson(request)), token, api),
     );
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function handleLocationPostcode(
+  request: Request,
+  lookup = locationPostcode,
+) {
+  try {
+    requireSameOrigin(request);
+    const body = await smallJson(request);
+    fields(body, ["latitude", "longitude"]);
+    if (
+      typeof body.latitude !== "number" ||
+      typeof body.longitude !== "number" ||
+      !Number.isFinite(body.latitude) ||
+      !Number.isFinite(body.longitude) ||
+      Math.abs(body.latitude) > 90 ||
+      Math.abs(body.longitude) > 180
+    )
+      throw new ApiError(400, "Choose a valid location.");
+    return json({
+      postcode: await lookup({
+        latitude: body.latitude,
+        longitude: body.longitude,
+      }),
+    });
   } catch (error) {
     return errorResponse(error);
   }

@@ -10,7 +10,8 @@ export default function MarketplaceHeader() {
   const pathname = usePathname();
   const params = useSearchParams();
   const router = useRouter();
-  const { selected, coordinates, select, useDeviceLocation } = useCustomer();
+  const { selected, coordinates, currentPostcode, select, useDeviceLocation } =
+    useCustomer();
   const dialog = useRef<HTMLDialogElement>(null);
   const request = useRef(0);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -24,7 +25,7 @@ export default function MarketplaceHeader() {
   const location = selected
     ? `${selected.label} · ${selected.postcode}`
     : coordinates
-      ? "Current location"
+      ? currentPostcode || "Current location"
       : "Choose location";
   const resetPage = () => {
     if (pathname === "/" && params.has("page")) {
@@ -228,7 +229,11 @@ export default function MarketplaceHeader() {
             <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
           </svg>
           {locating ? "Finding your location…" : "Use my current location"}
-          {coordinates && !locating && <span>Selected</span>}
+          {coordinates && !locating && (
+            <span>
+              {currentPostcode ? `${currentPostcode} · Selected` : "Selected"}
+            </span>
+          )}
         </button>
         {error && <p role="alert">{error}</p>}
         {locating && (
