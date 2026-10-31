@@ -84,6 +84,8 @@ test("cart request accepts identities and quantities only; prices, user identity
 function apiFixture(
   options: {
     stock?: number;
+    fee?: unknown;
+    feeFail?: boolean;
     listed?: boolean;
     detailFail?: boolean;
     address?: boolean;
@@ -95,6 +97,24 @@ function apiFixture(
   const api = createStreetApi(async (url, init) => {
     const u = new URL(String(url));
     calls.push(u.pathname + u.search);
+    if (u.pathname.endsWith("/orders/delivery-price")) {
+      assert.equal(init?.method, "POST");
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        userAddressId: addressId,
+        vendorId,
+      });
+      assert.match(
+        new Headers(init?.headers).get("Authorization") ?? "",
+        /^Bearer (customer-)?token$/,
+      );
+      return options.feeFail
+        ? new Response("", { status: 503 })
+        : Response.json({
+            data: {
+              priceTaxIncluded: options.fee === undefined ? 9.99 : options.fee,
+            },
+          });
+    }
     assert.equal(init?.method, "GET");
     const data = (value: unknown) => Response.json({ data: value });
     if (u.pathname.endsWith("/auth/me")) return data({ id: "customer" });
@@ -148,6 +168,7 @@ function apiFixture(
     return data({
       id: productId,
       title: "Coat",
+      options: [{ name: "Size", values: [{ value: "XS" }] }],
       images: [],
       variants: [
         {
@@ -166,6 +187,7 @@ test("cart revalidation uses catalogue membership and server outlet location; pr
   const result = await checkCart(intent, "customer-token", api);
   assert.equal(result.userId, "customer");
   assert.equal(result.lines[0].unitPrice, 179);
+  assert.deepEqual(result.lines[0].optionLabels, [{ name: "Size", value: "XS" }]);
   assert.equal(result.subtotal, 179);
   assert.equal(result.lines[0].issue, null);
   assert.ok(
@@ -223,4 +245,55 @@ test("cart route requires authenticated same-origin JSON and ignores no caller-s
   );
   assert.equal(good.status, 200);
   assert.match(good.headers.get("cache-control")!, /no-store/);
+});
+
+test("bag total uses platform delivery fee in pence, including changed and free delivery", async () => {
+  for (const fee of [9.99, 5.49, 0]) {
+    const { api } = apiFixture({ fee });
+    const result = await checkCart(intent, "token", api);
+    assert.equal(result.deliveryFee, fee);
+    assert.equal(result.total, (17900 + Math.round(fee * 100)) / 100);
+  }
+});
+test("missing or invalid delivery fee leaves stock review useful and total unconfirmed", async () => {
+  for (const options of [
+    { feeFail: true },
+    { fee: null },
+    { fee: -1 },
+    { fee: "9.99" },
+  ]) {
+    const { api } = apiFixture(options);
+    const result = await checkCart(intent, "token", api);
+    assert.equal(result.subtotal, 179);
+    assert.equal(result.deliveryFee, null);
+    assert.equal(result.total, null);
+  }
+  const result = await checkCart(intent, "token", apiFixture({ stock: 0 }).api);
+  assert.equal(result.deliveryFee, 9.99);
+  assert.equal(result.total, null);
+});
+test("a different retailer cannot mix items into the current bag without explicit replacement", () => {
+  const other = { ...outlet, vendorId: addressId };
+  const rejected = addCartLine(draft, other, line, 3);
+  assert.equal(rejected.conflict, true);
+  assert.deepEqual(rejected.cart, draft);
+  const replaced = addCartLine(
+    draft,
+    other,
+    { ...line, variantId: "2" },
+    3,
+    true,
+  );
+  assert.equal(replaced.cart.vendorId, addressId);
+  assert.equal(replaced.cart.lines.length, 1);
+  assert.equal(replaced.cart.lines[0].variantId, "2");
+});
+
+
+test("saved bag preserves labelled options while keeping legacy bags compatible", () => {
+  const labelled = { ...draft, lines: [{ ...line, optionLabels: [{ name: "Size", value: "4" }, { name: "Colour", value: "Black" }] }] };
+  assert.deepEqual(restoreCart(JSON.stringify(labelled)), labelled);
+  assert.deepEqual(restoreCart(JSON.stringify(draft)), draft);
+  assert.deepEqual(restoreCart(JSON.stringify({ ...draft, lines: [{ ...line, optionLabels: [{ name: 5, value: "4" }] }] })), draft);
+  assert.deepEqual(cartIntent(labelled, addressId), intent);
 });

@@ -131,3 +131,17 @@ export function optionLabels(option: ProductOption) {
     })),
   };
 }
+
+
+// Reuse the product overlay's option mapping and UK-size presentation in the bag.
+export function variantOptionLabels(product: ProductDetail, variantId: string): { name: string; value: string }[] {
+  const model = buildOptionModel(product);
+  const match = model?.variants.find((entry) => entry.variant.id === variantId);
+  if (model && match) return model.options.flatMap((option) => {
+    const labels = optionLabels(option);
+    const value = labels.values.find((entry) => entry.value === match.values[option.name])?.label;
+    return value && value !== "Default Title" ? [{ name: labels.name, value }] : [];
+  });
+  const title = product.variants.find((variant) => variant.id === variantId)?.title;
+  return title && title !== "Default Title" ? [{ name: "Option", value: title }] : [];
+}

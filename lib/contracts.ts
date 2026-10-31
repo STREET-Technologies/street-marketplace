@@ -114,6 +114,7 @@ export interface DeliveryCheck {
 }
 
 export interface CartLine {
+  optionLabels?: { name: string; value: string }[];
   productId: string;
   variantId: string;
   quantity: number;
@@ -136,6 +137,8 @@ export interface CartIntent {
   lines: { productId: string; variantId: string; quantity: number }[];
 }
 export interface CartReview {
+  deliveryFee: number | null;
+  total: number | null;
   userId: string;
   addressId: string;
   checkedAt: string;
@@ -146,6 +149,7 @@ export interface CartReview {
     quantity: number;
     title: string | null;
     variantTitle: string | null;
+    optionLabels?: { name: string; value: string }[];
     image: string | null;
     unitPrice: number | null;
     inventory: number | null;

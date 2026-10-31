@@ -1,3 +1,4 @@
+import { variantOptionLabels } from "../product-options.ts";
 import type {
   CartIntent,
   CartReview,
@@ -82,6 +83,8 @@ export async function checkCart(
     checkedAt: new Date().toISOString(),
     delivery,
     subtotal: null,
+    deliveryFee: null,
+    total: null,
     lines: intent.lines.map((l) => ({
       ...l,
       title: null,
@@ -93,6 +96,16 @@ export async function checkCart(
     })),
   };
   if (!outlet?.locationGid || delivery.status !== "available") return base;
+  try {
+    base.deliveryFee = await api.deliveryFee(
+      token,
+      address.id,
+      intent.vendorId,
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) throw error;
+    // Keep stock review useful, but never imply delivery is free after a failed quote.
+  }
   // Detail alone does not enforce ownership/Street eligibility. Establish list membership first.
   const wanted = new Set(intent.lines.map((l) => l.productId)),
     found = new Set<string>();
@@ -145,6 +158,7 @@ export async function checkCart(
       ...line,
       title: product.title,
       variantTitle: variant.title,
+      optionLabels: variantOptionLabels(product, variant.id),
       image: product.images[0] ?? null,
       unitPrice: variant.price,
       inventory: variant.inventory,
@@ -161,7 +175,13 @@ export async function checkCart(
       (total, l) => total + Math.round(l.unitPrice! * 100) * l.quantity,
       0,
     );
-    if (Number.isSafeInteger(cents)) base.subtotal = cents / 100;
+    if (Number.isSafeInteger(cents)) {
+      base.subtotal = cents / 100;
+      if (base.deliveryFee !== null) {
+        const totalCents = cents + Math.round(base.deliveryFee * 100);
+        if (Number.isSafeInteger(totalCents)) base.total = totalCents / 100;
+      }
+    }
   }
   return base;
 }

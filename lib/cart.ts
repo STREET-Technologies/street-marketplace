@@ -108,6 +108,9 @@ export function restoreCart(raw: string | null): CartDraft | null {
         quantity: l.quantity,
         title: l.title,
         variantTitle: l.variantTitle,
+        ...(Array.isArray(l.optionLabels) && l.optionLabels.length <= 10 && l.optionLabels.every((option) => option && label(option.name) && label(option.value))
+          ? { optionLabels: l.optionLabels.map(({ name, value }) => ({ name, value })) }
+          : {}),
         image: l.image,
         unitPrice: l.unitPrice,
       })),

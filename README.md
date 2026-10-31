@@ -94,7 +94,7 @@ Verification: 25 unit tests and the production build pass. Browser tests exercis
 
 ## Cart boundaries
 
-Sign in, choose a variant, then Add to bag. Choose a saved address in the bag to check stock/prices and the shop’s service area. Checks are invalidated by cart/address changes and expire after one minute; use the recheck button for fresh values. Stock is mirrored backend inventory, not reserved stock or a delivery guarantee. Quantity increases require a completed check with sufficient returned stock. Local cached prices are labelled as unconfirmed until checked.
+Sign in, choose a variant, then Add to bag. Choose a saved address in the bag to check stock/prices and the shop’s service area. Checks are invalidated by cart/address changes and refresh automatically after one minute. A retry is shown only when a check fails. Stock is mirrored backend inventory, not reserved stock or a delivery guarantee. Quantity increases require a completed check with sufficient returned stock. Local cached prices are labelled as unconfirmed until checked.
 
 Storage is namespaced by environment and canonical user ID, with no tokens or addresses. Sign-out/account changes hide the previous account’s bag; signing back in restores that account’s local bag. Switching outlets requires Keep/Replace confirmation. A staging request bound limits bags to 12 distinct variants and 99 units per line; backend availability may be lower. Corrupted local data is discarded. No order, Shopify cart, payment or courier operation is exposed.
 
@@ -128,3 +128,10 @@ Set server-only `GOOGLE_CLIENT_ID` to the existing staging Google **Web applicat
 Without this setting the Google option is hidden and OTP remains available. SDK/popup failures do not sign the user in; retry starts a fresh challenge. Existing customers should choose the same method used in the app. Backend phone/email matching does not guarantee account merging across different methods; shared identity work remains TT-532. Apple security remediation remains TT-505.
 
 Local acceptance passed with the user’s existing Google mobile account: profile, wishlist and addresses match, and sign-out/sign-in succeeds. Repeat these checks on Vercel staging. Check cancellation and blocked-popup recovery, then confirm OTP still works. Automated tests use generated signed tokens and fixtures, never customer credentials. See `docs/web-social-sign-in-provider-research.md` for token validation and challenge limitations.
+
+
+### Bag presentation and delivery fee (TT-533)
+
+The bag uses compact app-style product rows and quantity controls, with a desktop address/summary column that stacks on mobile. Address selection opens the existing shared location picker. The one-retailer/outlet rule and Keep/Replace confirmation remain unchanged.
+
+After validating the selected address and shop service area, the bag check reads `/orders/delivery-price` with the same `userAddressId`/`vendorId` contract as mobile. This is a read-only quote despite its POST method; it uses platform configuration shared with order creation. The summary includes the validated fee and a total calculated in pence. Missing/invalid fees or incomplete stock checks leave the total unconfirmed; no hardcoded fee fallback or checkout/order creation is added.

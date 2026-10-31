@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { ProductDetail } from "../lib/contracts.ts";
 import {
   buildOptionModel,
+  variantOptionLabels,
   chooseOption,
   defaultOptions,
   matchingOptions,
@@ -155,4 +156,13 @@ test("UK display needs explicit consistent unique equivalents; never converts re
     "Colour",
   );
   assert.equal(optionLabels({ name: "Fit", values: ["Regular"] }).name, "Fit");
+});
+
+
+test("bag labels share UK size and colour mapping, including a single colour", () => {
+  assert.deepEqual(variantOptionLabels(apex, "1"), [{ name: "Size (UK)", value: "6" }, { name: "Colour", value: "Flat White" }]);
+  assert.deepEqual(variantOptionLabels(product([{ name: "Size", values: ["4"] }], ["4"]), "1"), [{ name: "Size", value: "4" }]);
+  assert.deepEqual(variantOptionLabels(product([{ name: "Color", values: ["Black"] }], ["Black"]), "1"), [{ name: "Colour", value: "Black" }]);
+  assert.deepEqual(variantOptionLabels(product([], ["4"]), "1"), [{ name: "Option", value: "4" }]);
+  assert.deepEqual(variantOptionLabels(product([], ["Default Title"]), "1"), []);
 });

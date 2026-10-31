@@ -371,6 +371,25 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
         totalPages: Math.ceil(filtered.length / limit),
       };
     },
+    async deliveryFee(token: string, userAddressId: string, vendorId: string) {
+      const data = record(
+        await request(
+          "/orders/delivery-price",
+          "POST",
+          { userAddressId, vendorId },
+          token,
+        ),
+      );
+      const fee = data.priceTaxIncluded;
+      if (
+        typeof fee !== "number" ||
+        !Number.isFinite(fee) ||
+        fee < 0 ||
+        !Number.isSafeInteger(Math.round(fee * 100))
+      )
+        throw new ApiError(502, "Delivery fee could not be confirmed.");
+      return Math.round(fee * 100) / 100;
+    },
     async addresses(token: string) {
       return addressesFrom(
         await request("/user-addresses", "GET", undefined, token),

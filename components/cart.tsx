@@ -1,4 +1,5 @@
 "use client";
+import { variantOptionLabels } from "../lib/product-options";
 import NavigationIcon from "./navigation-icon";
 import { productOptionPrompt } from "../lib/product-presentation";
 import { CustomerEmptyState, CustomerSignIn } from "./customer-page";
@@ -212,6 +213,7 @@ export function AddToBag({
           variantId: variant.id,
           title: product.title,
           variantTitle: variant.title,
+          optionLabels: variantOptionLabels(product, variant.id),
           image: product.images[0] ?? null,
           unitPrice: variant.price,
           quantity: 1,
@@ -319,12 +321,7 @@ export default function Bag() {
         if (active) {
           setReview({ key: fingerprint, data });
           expiry = setTimeout(() => {
-            if (active)
-              setReview({
-                key: fingerprint,
-                error:
-                  "This check is out of date. Check stock and prices again.",
-              });
+            if (active) recheck((value) => value + 1);
           }, 60000);
         }
       })
@@ -374,154 +371,244 @@ export default function Bag() {
         </Link>
       </CustomerEmptyState>
     );
+  const count = cart.lines.reduce((total, line) => total + line.quantity, 0);
+  const shopUrl = `/?${new URLSearchParams({ view: "shops", vendorId: cart.vendorId, outletId: cart.outletId })}`;
   return (
     <section className="cart-page">
-      <div className="section-heading">
-        <div>
-          <h2>{cart.shopName}</h2>
-          <p>{cart.branch}</p>
-        </div>
-        <Link className="text-link" href="/?view=shops">
-          Keep browsing →
-        </Link>
-      </div>
-      <p>
-        Saved on this browser for your STREET account. It is separate from your
-        app’s bag.
-      </p>
       {notice && <p role="alert">{notice}</p>}
-      {!selected ? (
-        <p className="catalogue-message">
-          Choose a saved address from the location menu above to check this
-          shop, stock and current prices.
-        </p>
-      ) : !result?.data && !result?.error ? (
-        <p role="status">
-          Checking your bag against the selected shop location…
-        </p>
-      ) : null}
-      {result?.error && (
-        <p role="alert">
-          {result.error} Prices and availability have not been confirmed.
-        </p>
-      )}
-      {data && (
-        <div className="delivery-status" role="status">
-          <p>
-            {data.delivery.status === "available"
-              ? data.delivery.isOpen === true
-                ? "This shop is listed for your address and is open now."
-                : data.delivery.isOpen === false
-                  ? "This shop is listed for your address but is currently closed."
-                  : "This shop is listed for your address. Opening status is unavailable."
-              : data.delivery.status === "unavailable"
-                ? "This shop is not currently listed for your address. Choose another address or shop."
-                : "This shop’s service area could not be verified."}
+      <div className="cart-layout">
+        <div className="cart-items">
+          <header className="cart-shop">
+            <div>
+              <h2>{cart.shopName}</h2>
+              <p>
+                {cart.branch} · {count} {count === 1 ? "item" : "items"}
+              </p>
+            </div>
+            <Link className="text-link" href={shopUrl}>
+              Continue shopping
+            </Link>
+          </header>
+          <p className="cart-shop-note">
+            Shopping from <strong>{cart.shopName}</strong>. Adding items from another store will clear your current cart.
           </p>
-          <p>Stock is not reserved. This check does not guarantee delivery.</p>
+          <div className="cart-lines">
+            {cart.lines.map((line) => {
+              const checked = data?.lines.find(
+                (l) => cartLineKey(l) === cartLineKey(line),
+              );
+              const confirmed =
+                checked?.unitPrice !== null && checked?.unitPrice !== undefined;
+              const price = checked?.unitPrice ?? line.unitPrice;
+              const increase =
+                checked?.issue === null &&
+                checked.inventory !== null &&
+                checked.inventory !== undefined &&
+                line.quantity < checked.inventory &&
+                line.quantity < CART_MAX_QUANTITY;
+              return (
+                <article className="cart-line" key={cartLineKey(line)}>
+                  {(checked?.image ?? line.image) ? (
+                    <img src={(checked?.image ?? line.image)!} alt="" />
+                  ) : (
+                    <div className="image-unavailable">Image unavailable</div>
+                  )}
+                  <div className="cart-line-detail">
+                    <h3>{checked?.title ?? line.title}</h3>
+                    <p className="cart-variant">
+                      {(checked?.optionLabels ?? line.optionLabels ?? [{ name: "Option", value: checked?.variantTitle ?? line.variantTitle }])
+                        .filter((option) => option.value !== "Default Title")
+                        .map((option) => `${option.name}: ${option.value}`).join(" · ")}
+                    </p>
+                    <p className="cart-unit-price">
+                      {money(price)} each
+                      {!confirmed && " · Price not confirmed"}
+                    </p>
+                    {confirmed && price !== line.unitPrice && (
+                      <p className="cart-line-notice">
+                        Price changed from {money(line.unitPrice)} to{" "}
+                        {money(price)}.
+                      </p>
+                    )}
+                    {checked?.issue === "stock" && (
+                      <p className="cart-line-notice" role="status">
+                        {checked.inventory === 0
+                          ? "Out of stock. Remove this item."
+                          : `Only ${checked.inventory} available. Reduce the quantity.`}
+                      </p>
+                    )}
+                    {checked?.issue === "unavailable" && (
+                      <p className="cart-line-notice" role="status">
+                        This variant is no longer available from this shop.
+                        Remove it to update your bag.
+                      </p>
+                    )}
+                    {checked?.issue === "unknown" && (
+                      <p className="cart-line-notice" role="status">
+                        Availability has not been confirmed for this item.
+                      </p>
+                    )}
+                    <div className="cart-line-controls">
+                      <div
+                        className="cart-quantity"
+                        role="group"
+                        aria-label={`Quantity for ${line.title}`}
+                      >
+                        <button
+                          disabled={line.quantity <= 1}
+                          onClick={() => quantity(line, line.quantity - 1)}
+                          aria-label={`Decrease quantity of ${line.title} ${line.variantTitle}`}
+                        >
+                          −
+                        </button>
+                        <span
+                          aria-live="polite"
+                          aria-label={`Quantity ${line.quantity}`}
+                        >
+                          {line.quantity}
+                        </span>
+                        <button
+                          disabled={!increase}
+                          onClick={() => quantity(line, line.quantity + 1)}
+                          aria-label={`Increase quantity of ${line.title} ${line.variantTitle}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        className="text-link cart-remove"
+                        onClick={() => remove(line)}
+                        aria-label={`Remove ${line.title} ${line.variantTitle}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <strong className="cart-line-total">
+                    {money((Math.round(price * 100) * line.quantity) / 100)}
+                    {!confirmed && <small>When added</small>}
+                  </strong>
+                </article>
+              );
+            })}
+          </div>
+          <p className="cart-browser-note">
+            This bag is saved on this browser. It doesn’t sync with your app’s
+            bag yet.
+          </p>
         </div>
-      )}
-      <div className="cart-lines">
-        {cart.lines.map((line) => {
-          const checked = data?.lines.find(
-            (l) => cartLineKey(l) === cartLineKey(line),
-          );
-          const increase =
-            checked?.issue === null &&
-            checked.inventory !== null &&
-            checked.inventory !== undefined &&
-            line.quantity < checked.inventory &&
-            line.quantity < CART_MAX_QUANTITY;
-          return (
-            <article className="cart-line" key={cartLineKey(line)}>
-              {(checked?.image ?? line.image) ? (
-                <img src={(checked?.image ?? line.image)!} alt="" />
-              ) : (
-                <div className="image-unavailable">Image unavailable</div>
-              )}
-              <div>
-                <h2>{checked?.title ?? line.title}</h2>
-                <p>{checked?.variantTitle ?? line.variantTitle}</p>
+        <aside className="cart-summary" aria-labelledby="bag-summary-title">
+          <div className="cart-address">
+            <NavigationIcon name="location" />
+            <div>
+              <h2>Delivery address</h2>
+              {selected ? (
                 <p>
-                  {checked?.unitPrice !== null &&
-                  checked?.unitPrice !== undefined
-                    ? money(checked.unitPrice)
-                    : `${money(line.unitPrice)} when added — not confirmed`}
+                  {[
+                    selected.line1,
+                    selected.line2,
+                    selected.city,
+                    selected.postcode,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
-                {checked?.unitPrice !== null &&
-                  checked?.unitPrice !== undefined &&
-                  checked.unitPrice !== line.unitPrice && (
+              ) : (
+                <p>
+                  Choose a saved address to check stock, prices and delivery
+                  availability.
+                </p>
+              )}
+              <button
+                className="text-link"
+                aria-haspopup="dialog"
+                aria-controls="location-picker"
+                onClick={() =>
+                  document.getElementById("location-trigger")?.click()
+                }
+              >
+                {selected ? "Change address" : "Choose address"}
+              </button>
+            </div>
+          </div>
+          <h2 id="bag-summary-title">Order summary</h2>
+          <dl className="cart-totals">
+            <div>
+              <dt>
+                Subtotal{" "}
+                <span>
+                  ({count} {count === 1 ? "item" : "items"})
+                </span>
+              </dt>
+              <dd>
+                {data?.subtotal !== null && data?.subtotal !== undefined
+                  ? money(data.subtotal)
+                  : "Not confirmed"}
+              </dd>
+            </div>
+            <div>
+              <dt>Delivery</dt>
+              <dd>
+                {data?.deliveryFee != null
+                  ? money(data.deliveryFee)
+                  : selected
+                    ? "Not confirmed"
+                    : "Choose an address"}
+              </dd>
+            </div>
+            <div className="cart-grand-total">
+              <dt>Total</dt>
+              <dd>
+                {data?.total != null ? money(data.total) : "Not confirmed"}
+              </dd>
+            </div>
+          </dl>
+          <div className="cart-check-status" aria-live="polite">
+            {selected && !result?.data && !result?.error && (
+              <p role="status">Checking stock and prices…</p>
+            )}
+            {result?.error && (
+              <p role="alert">
+                {result.error} Prices and availability have not been confirmed.
+              </p>
+            )}
+            {data && (
+              <>
+                {data.deliveryFee !== null && (
+                  <p>
+                    Delivery {money(data.deliveryFee)} is not refunded once your order is on its way. Returns and refunds are handled by {cart.shopName}.
+                  </p>
+                )}
+                {data.delivery.status !== "available" && (
+                  <p>{data.delivery.status === "unavailable"
+                    ? "This shop does not currently serve your address. Choose another address or shop."
+                    : "Delivery availability could not be confirmed."}</p>
+                )}
+                {data.delivery.status === "available" && data.delivery.isOpen === false && (
+                  <p>This shop is currently closed.</p>
+                )}
+                {data.delivery.status === "available" &&
+                  data.deliveryFee === null && (
                     <p>
-                      Price changed from {money(line.unitPrice)} to{" "}
-                      {money(checked.unitPrice)}.
+                      Delivery fee couldn’t be loaded. Please try again.
                     </p>
                   )}
-                {checked?.issue === "stock" && (
-                  <p role="status">
-                    {checked.inventory === 0
-                      ? "Out of stock. Remove this item."
-                      : `Only ${checked.inventory} available. Reduce the quantity.`}
-                  </p>
+                {data.subtotal === null && (
+                  <p>Review the items in your bag to confirm your subtotal.</p>
                 )}
-                {checked?.issue === "unavailable" && (
-                  <p role="status">
-                    This variant is no longer available from this shop. Remove
-                    it to update your bag.
-                  </p>
-                )}
-                {checked?.issue === "unknown" && (
-                  <p role="status">
-                    Availability has not been confirmed for this item.
-                  </p>
-                )}
-                <div className="cart-actions">
-                  <button
-                    className="secondary"
-                    disabled={line.quantity <= 1}
-                    onClick={() => quantity(line, line.quantity - 1)}
-                    aria-label={`Decrease quantity of ${line.title} ${line.variantTitle}`}
-                  >
-                    −
-                  </button>
-                  <span aria-live="polite">Quantity {line.quantity}</span>
-                  <button
-                    className="secondary"
-                    disabled={!increase}
-                    onClick={() => quantity(line, line.quantity + 1)}
-                    aria-label={`Increase quantity of ${line.title} ${line.variantTitle}`}
-                  >
-                    +
-                  </button>
-                  <button className="text-link" onClick={() => remove(line)}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      <div className="cart-summary">
-        <p>
-          Item subtotal{" "}
-          <strong>
-            {data?.subtotal !== null && data?.subtotal !== undefined
-              ? money(data.subtotal)
-              : "Awaiting a complete stock and price check"}
-          </strong>
-        </p>
-        <p>Delivery and any other charges will be confirmed at checkout.</p>
-        <button
-          className="secondary"
-          disabled={!selected || (!result?.data && !result?.error)}
-          onClick={() => recheck((v) => v + 1)}
-        >
-          Check stock and prices again
-        </button>
-        <button className="primary" disabled>
-          Checkout coming later
-        </button>
-        <p>No order or payment is created by adding or checking your bag.</p>
+              </>
+            )}
+          </div>
+          <button className="primary wide" disabled>
+            Checkout coming later
+          </button>
+          {(result?.error || data?.delivery.status === "unknown" ||
+            (data?.delivery.status === "available" && (data.deliveryFee === null || data.lines.some((line) => line.issue === "unknown")))) && (
+            <button className="text-link cart-recheck" onClick={() => recheck((v) => v + 1)}>
+              Try again
+            </button>
+          )}
+        </aside>
       </div>
     </section>
   );
