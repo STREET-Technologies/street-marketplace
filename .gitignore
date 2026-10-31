@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+output/
+dist/
+.vercel/
+.env
+.env.*
+
+.next/
+*.tsbuildinfo
+!.env.example
+.playwright-cli/
