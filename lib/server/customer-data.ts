@@ -29,6 +29,10 @@ export function addressesFrom(value: unknown): SavedAddress[] {
       city: requiredString(a.city),
       postcode: requiredString(a.postcode),
       isDefault: a.isDefault === true,
+      state: optionalString(a.state) ?? "",
+      country: optionalString(a.country) ?? "United Kingdom",
+      countryCode: optionalString(a.countryCode) ?? "GB",
+      deliveryInstructions: optionalString(a.deliveryInstructions) ?? "",
       coordinates:
         Number.isFinite(lat) &&
         Number.isFinite(lon) &&

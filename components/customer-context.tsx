@@ -242,12 +242,12 @@ export function FavouriteButton({
     state.data?.favourites.some((f) => key(f) === key(target)) ?? false;
   const label =
     pending === key(target)
-      ? "Updating favourites…"
+      ? "Updating wishlist…"
       : state.status === "loading"
-        ? "Loading favourites…"
+        ? "Loading wishlist…"
         : saved
-          ? `Remove ${name} from favourites`
-          : `Add ${name} to favourites`;
+          ? `Remove ${name} from wishlist`
+          : `Add ${name} to wishlist`;
   const heart = <NavigationIcon name="heart" filled={saved} />;
   const buttonClass = `favourite-action ${appearance !== "inline" ? "favourite-heart" : "text-link"}`;
   return (
@@ -256,7 +256,7 @@ export function FavouriteButton({
         <Link
           className={buttonClass}
           href="/account"
-          aria-label={`Sign in to add ${name} to favourites`}
+          aria-label={`Sign in to add ${name} to wishlist`}
         >
           {heart}
           {appearance === "inline" && "Sign in to save"}
@@ -265,10 +265,10 @@ export function FavouriteButton({
         <button
           className={buttonClass}
           onClick={refresh}
-          aria-label="Reload favourites"
+          aria-label="Reload wishlist"
         >
           {heart}
-          {appearance === "inline" && "Reload favourites"}
+          {appearance === "inline" && "Reload wishlist"}
         </button>
       ) : (
         <button
@@ -285,7 +285,7 @@ export function FavouriteButton({
               setError(
                 e instanceof Error
                   ? e.message
-                  : "Unable to update this favourite.",
+                  : "Unable to update your wishlist.",
               );
             }
           }}
@@ -304,7 +304,7 @@ export function FavouriteButton({
               refresh();
             }}
           >
-            Refresh favourites
+            Refresh wishlist
           </button>
         </p>
       )}
@@ -338,8 +338,7 @@ export function SavedAddressOptions({ onSelect }: { onSelect: () => void }) {
         <>
           {!state.data?.addresses.length && (
             <p>
-              No saved addresses yet. Add one in the STREET app, then refresh
-              here.
+              No saved addresses yet. <Link href="/account" onClick={onSelect}>Add an address in Profile</Link>.
             </p>
           )}
           <div className="address-options">

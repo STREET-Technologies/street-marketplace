@@ -165,10 +165,10 @@ export function BagLink({ active = false }: { active?: boolean }) {
       href="/bag"
       className="header-action"
       aria-label={`Bag, ${count} items`}
+      title="Bag"
       aria-current={active ? "page" : undefined}
     >
-      <NavigationIcon name="bag" />
-      <span>Bag</span>
+      <NavigationIcon name="bag" filled={active} />
       {count > 0 && (
         <span className="bag-count" aria-hidden="true">
           {count}

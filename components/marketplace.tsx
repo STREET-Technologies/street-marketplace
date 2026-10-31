@@ -245,15 +245,31 @@ function Shops({
               )}
               <div>
                 <div className="shop-heading">
-                  <h3>
-                    {outlet.locationGid && outlet.outletId ? (
-                      <Link className="shop-name-link" href={href(destination)}>
-                        {outlet.name}
-                      </Link>
-                    ) : (
-                      outlet.name
+                  <div className="shop-name-row">
+                    <h3>
+                      {outlet.locationGid && outlet.outletId ? (
+                        <Link
+                          className="shop-name-link"
+                          href={href(destination)}
+                        >
+                          {outlet.name}
+                        </Link>
+                      ) : (
+                        outlet.name
+                      )}
+                    </h3>
+                    {outlet.outletId && (
+                      <FavouriteButton
+                        appearance="icon"
+                        name={outlet.name}
+                        target={{
+                          kind: "shop",
+                          vendorId: outlet.vendorId,
+                          outletId: outlet.outletId,
+                        }}
+                      />
                     )}
-                  </h3>
+                  </div>
                   <ShopLogo src={outlet.logo} />
                 </div>
                 <p>
@@ -286,17 +302,7 @@ function Shops({
                     </span>
                   )}
                 </div>
-                {outlet.outletId && (
-                  <FavouriteButton
-                    appearance="card"
-                    name={outlet.name}
-                    target={{
-                      kind: "shop",
-                      vendorId: outlet.vendorId,
-                      outletId: outlet.outletId,
-                    }}
-                  />
-                )}
+
                 {outlet.locationGid && outlet.outletId ? (
                   <Link className="text-link" href={href(destination)}>
                     Explore the shop →

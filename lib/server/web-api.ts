@@ -15,7 +15,7 @@ const privateHeaders = {
   "X-Robots-Tag": "noindex",
 };
 
-function json(body: unknown, status = 200) {
+export function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: privateHeaders });
 }
 
@@ -61,7 +61,9 @@ export function requireSameOrigin(request: Request) {
   }
 }
 
-async function smallJson(request: Request): Promise<Record<string, unknown>> {
+export async function smallJson(
+  request: Request,
+): Promise<Record<string, unknown>> {
   const reader = request.body?.getReader();
   if (!reader) throw new ApiError(400, "Please provide your details.");
   const chunks: Uint8Array[] = [];
@@ -83,11 +85,11 @@ async function smallJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-function fields(body: Record<string, unknown>, allowed: string[]) {
+export function fields(body: Record<string, unknown>, allowed: string[]) {
   if (Object.keys(body).some((key) => !allowed.includes(key)))
     throw new ApiError(400, "Unexpected request fields.");
 }
-function phoneFrom(value: unknown) {
+export function phoneFrom(value: unknown) {
   // Input is explicitly international format; backend remains normalization authority.
   if (typeof value !== "string")
     throw new ApiError(400, "Enter your phone number with its country code.");
@@ -232,7 +234,7 @@ export async function handleFavourites(request: NextRequest, api: StreetApi) {
         (key) => !["productsPage", "shopsPage"].includes(key),
       )
     ) {
-      throw new ApiError(400, "Unsupported favourites filter.");
+      throw new ApiError(400, "Unsupported wishlist filter.");
     }
     const pages = ["productsPage", "shopsPage"].map((key) =>
       Number(params.get(key) ?? 1),
@@ -242,7 +244,7 @@ export async function handleFavourites(request: NextRequest, api: StreetApi) {
         (page) => !Number.isSafeInteger(page) || page < 1 || page > 1000,
       )
     ) {
-      throw new ApiError(400, "Invalid favourites page.");
+      throw new ApiError(400, "Invalid wishlist page.");
     }
     return json(await api.favourites(token, pages[0], pages[1]));
   } catch (error) {
@@ -310,7 +312,7 @@ export async function handleFavouriteChange(
       return json({ error: "Method not allowed." }, 405);
     requireSameOrigin(request);
     const token = request.cookies.get(sessionCookies.access)?.value;
-    if (!token) throw new ApiError(401, "Sign in to save your favourites.");
+    if (!token) throw new ApiError(401, "Sign in to save to your wishlist.");
     const body = await smallJson(request);
     fields(
       body,

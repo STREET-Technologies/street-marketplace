@@ -93,7 +93,11 @@ export function readAccountData<T>(
 }
 
 export function postAccountData<T>(
-  path: "/api/favourites/change" | "/api/cart/check",
+  path:
+    | "/api/favourites/change"
+    | "/api/cart/check"
+    | "/api/profile"
+    | "/api/addresses/change",
   body: unknown,
 ): Promise<T> {
   return withSessionRefresh(async () => {

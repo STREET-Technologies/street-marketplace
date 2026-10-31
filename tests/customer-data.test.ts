@@ -24,7 +24,8 @@ const address = {
   longitude: "-0.13",
   isDefault: true,
   userId: "private-owner",
-  deliveryInstructions: "PRIVATE",
+  deliveryInstructions: "Leave with reception",
+  internalNotes: "PRIVATE",
 };
 const cookie = { cookie: "street_staging_access=customer-token" };
 function request(
@@ -50,6 +51,7 @@ test("addresses accept decimal strings, reject missing/zero coordinates and omit
   assert.equal(rows[2].coordinates, null);
   assert.ok(!JSON.stringify(rows).includes("PRIVATE"));
   assert.ok(!JSON.stringify(rows).includes("private-owner"));
+  assert.equal(rows[0].deliveryInstructions, "Leave with reception");
 });
 test("favourite changes require same origin, authenticated cookie and exact body; no mutation on invalid input", async () => {
   let calls = 0;
@@ -237,21 +239,40 @@ test("customer context is cookie scoped and strips personal upstream metadata fr
   assert.ok(!JSON.stringify(data).includes("PRIVATE"));
 });
 
-
 test("nearby shops resolve only the signed-in customer's saved address", async () => {
   const calls: URL[] = [];
-  const api = createStreetApi(async (url,init) => {
-    const parsed = new URL(String(url)); calls.push(parsed);
-    if(parsed.pathname.endsWith("/user-addresses")) {
-      assert.equal(new Headers(init?.headers).get("authorization"),"Bearer customer-token");
+  const api = createStreetApi(async (url, init) => {
+    const parsed = new URL(String(url));
+    calls.push(parsed);
+    if (parsed.pathname.endsWith("/user-addresses")) {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "Bearer customer-token",
+      );
       return envelope([address]);
     }
-    assert.equal(parsed.searchParams.get("user_latitude"),"51.51");
-    assert.equal(parsed.searchParams.get("user_longitude"),"-0.13");
-    return envelope({data:[],meta:{total:0,page:1,totalPages:0}});
+    assert.equal(parsed.searchParams.get("user_latitude"), "51.51");
+    assert.equal(parsed.searchParams.get("user_longitude"), "-0.13");
+    return envelope({ data: [], meta: { total: 0, page: 1, totalPages: 0 } });
   });
-  assert.equal((await handleVendors(request(`catalogue/vendors?addressId=${addressId}`),api)).status,200);
-  assert.equal(calls.length,2);
-  assert.equal((await handleVendors(request(`catalogue/vendors?addressId=${productId}`),api)).status,404);
-  assert.equal(calls.length,3);
+  assert.equal(
+    (
+      await handleVendors(
+        request(`catalogue/vendors?addressId=${addressId}`),
+        api,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(calls.length, 2);
+  assert.equal(
+    (
+      await handleVendors(
+        request(`catalogue/vendors?addressId=${productId}`),
+        api,
+      )
+    ).status,
+    404,
+  );
+  assert.equal(calls.length, 3);
 });

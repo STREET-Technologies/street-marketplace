@@ -1,4 +1,5 @@
 import { addressesFrom } from "./customer-data.ts";
+import type { ProfileChanges, AddressFields } from "../profile.ts";
 import type {
   FavouriteTarget,
   CustomerContext,
@@ -36,6 +37,7 @@ export function customerFrom(value: unknown): Customer {
     lastName: optionalString(user.lastName),
     email: optionalString(user.email),
     phone: optionalString(user.phone),
+    ssoProvider: optionalString(user.ssoProvider),
   };
 }
 
@@ -110,7 +112,7 @@ export function favouriteRefs(
   kind: "products" | "shops",
 ): FavouriteRef[] {
   if (!Array.isArray(value))
-    throw new ApiError(502, "STREET returned unexpected favourites.");
+    throw new ApiError(502, "STREET returned an unexpected wishlist.");
   return value.map((item) => {
     const row = record(item);
     return kind === "products"
@@ -180,6 +182,7 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
         401: "Your session or verification code is no longer valid.",
         403: "This action is not available for this account.",
         404: "The requested item could not be found.",
+        409: "These details are already used by another account. Please check your email or mobile number.",
         429: "Too many attempts. Please wait before trying again.",
       };
       throw new ApiError(
@@ -248,6 +251,63 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
     async me(accessToken: string) {
       return customerFrom(
         await request("/auth/me", "GET", undefined, accessToken),
+      );
+    },
+    async updateProfile(
+      token: string,
+      userId: string,
+      changes: ProfileChanges,
+    ) {
+      return customerFrom(
+        await request(
+          `/users/${encodeURIComponent(userId)}`,
+          "PATCH",
+          changes,
+          token,
+        ),
+      );
+    },
+    async validateAddress(
+      token: string,
+      address: Pick<AddressFields, "line1" | "city" | "postcode">,
+    ) {
+      const result = record(
+        await request(
+          "/user-addresses/validate",
+          "POST",
+          {
+            address: address.line1,
+            city: address.city,
+            postcode: address.postcode,
+          },
+          token,
+        ),
+      );
+      return optionalString(result.verdict) ?? "unknown";
+    },
+    async saveAddress(
+      token: string,
+      id: string | null,
+      changes: Partial<AddressFields> & {
+        isDefault?: boolean;
+        country?: string;
+        countryCode?: string;
+      },
+    ) {
+      const result = await request(
+        id ? `/user-addresses/${encodeURIComponent(id)}` : "/user-addresses",
+        id ? "PATCH" : "POST",
+        changes,
+        token,
+      );
+      return addressesFrom([result])[0];
+    },
+    async deleteAddress(token: string, id: string) {
+      await request(
+        `/user-addresses/${encodeURIComponent(id)}`,
+        "DELETE",
+        undefined,
+        token,
       );
     },
     async refresh(refreshToken: string) {

@@ -2,10 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CustomerEmptyState } from "./customer-page";
+import CustomerTabs from "./customer-tabs";
+import ProfileDetails from "./profile-details";
+import ProfileAddresses from "./profile-addresses";
 import type { Customer } from "../lib/contracts";
 import { currentCustomer, sessionRequest } from "../lib/client/session";
 
 export default function Account() {
+  const [tab, setTab] = useState("details");
   const [user, setUser] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -66,35 +70,58 @@ export default function Account() {
     );
   if (user)
     return (
-      <section className="customer-panel account-content">
-        <h2>Hello{user.firstName ? `, ${user.firstName}` : ""}</h2>
-        <p>Your STREET account details.</p>
-        <dl className="account-details">
-          <dt>Phone</dt>
-          <dd>{user.phone || "Not provided"}</dd>
-          <dt>Email</dt>
-          <dd>{user.email || "Not provided"}</dd>
-        </dl>
+      <div className="profile-content">
+        <CustomerTabs
+          label="Profile options"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            {
+              key: "details",
+              label: "Personal details",
+              content: <ProfileDetails user={user} onSaved={setUser} />,
+            },
+            {
+              key: "addresses",
+              label: "My addresses",
+              content: <ProfileAddresses />,
+            },
+          ]}
+        />
+        <aside className="profile-app">
+          <h2>Continue in the STREET app</h2>
+          <p>
+            Track orders, manage returns and view your credit balance in the
+            app. You can also manage notifications and account deletion there.
+          </p>
+          <p>Sign in with the same account you use here.</p>
+        </aside>
+        <div className="profile-actions profile-account-actions">
+          <a className="text-link" href="https://street.london/support">
+            Support &amp; help
+          </a>
+          <button
+            className="text-link"
+            disabled={busy}
+            onClick={() =>
+              run(async () => {
+                await sessionRequest("logout", {});
+                setUser(null);
+                setCode("");
+                setSent(false);
+                setTab("details");
+              })
+            }
+          >
+            {busy ? "Signing out…" : "Sign out"}
+          </button>
+        </div>
         {error && (
           <p role="alert" className="account-error">
             {error}
           </p>
         )}
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() =>
-            run(async () => {
-              await sessionRequest("logout", {});
-              setUser(null);
-              setCode("");
-              setSent(false);
-            })
-          }
-        >
-          {busy ? "Signing out…" : "Sign out"}
-        </button>
-      </section>
+      </div>
     );
   return (
     <CustomerEmptyState

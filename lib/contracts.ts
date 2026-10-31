@@ -4,6 +4,7 @@ export interface Customer {
   lastName: string | null;
   email: string | null;
   phone: string | null;
+  ssoProvider?: string | null;
 }
 
 export interface OutletCard {
@@ -93,6 +94,10 @@ export interface SavedAddress {
   city: string;
   postcode: string;
   isDefault: boolean;
+  state?: string;
+  country?: string;
+  countryCode?: string;
+  deliveryInstructions?: string;
   coordinates: { latitude: number; longitude: number } | null;
 }
 export type FavouriteTarget =

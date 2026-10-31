@@ -59,7 +59,7 @@ function Collection({
         />
       ) : (
         <>
-          <div className="saved-grid">
+          <div className={`product-grid saved-grid saved-grid--${kind}`}>
             {collection.items.map((item) => (
               <article key={item.key} className="saved-card">
                 <SavedImage item={item} />
@@ -200,7 +200,7 @@ export default function Saved() {
           <div
             className="saved-collection-switch"
             role="group"
-            aria-label="Favourite collections"
+            aria-label="Wishlist collections"
           >
             <button
               aria-pressed={collection === "products"}
@@ -229,7 +229,7 @@ export default function Saved() {
       {state.status === "signed-out" && (
         <CustomerSignIn
           icon="heart"
-          title="Save your favourites"
+          title="Your wishlist"
           message="Sign in to keep track of the stores and items you love."
         />
       )}

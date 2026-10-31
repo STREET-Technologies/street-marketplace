@@ -8,7 +8,7 @@ export default function HeaderActions() {
   const pathname = usePathname();
   const links = [
     { href: "/account", label: "Profile" },
-    { href: "/saved", label: "Favourites" },
+    { href: "/saved", label: "Wishlist" },
   ];
   return (
     <nav className="header-actions" aria-label="Your STREET">
@@ -17,10 +17,11 @@ export default function HeaderActions() {
           key={href}
           href={href}
           className="header-action"
+          aria-label={label}
+          title={label}
           aria-current={pathname === href ? "page" : undefined}
         >
-          <NavigationIcon name={href === "/account" ? "profile" : "heart"} />
-          <span>{label}</span>
+          <NavigationIcon name={href === "/account" ? "profile" : "heart"} filled={pathname === href} />
         </Link>
       ))}
       <BagLink active={pathname === "/bag"} />

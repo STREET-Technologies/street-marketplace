@@ -2520,7 +2520,7 @@ a.area-card,
   flex-shrink: 0;
   margin: 0;
 }
-.product-title-row .favourite-control--icon {
+.favourite-control--icon {
   position: relative;
 }
 .favourite-control--icon p {
@@ -2544,20 +2544,14 @@ a.area-card,
 }
 .marketplace-header .header-action {
   position: relative;
-  flex-direction: column;
   justify-content: center;
-  gap: 5px;
-  min-width: 52px;
+  min-width: 44px;
   padding: 8px 0;
   font-size: 12px;
   line-height: 18px;
 }
 .marketplace-header .header-action[aria-current="page"] {
   text-decoration: none;
-}
-.marketplace-header .header-action[aria-current="page"] > span:not(.bag-count) {
-  text-decoration: underline;
-  text-underline-offset: 5px;
 }
 .marketplace-header .header-action svg {
   width: 25px;
@@ -2689,12 +2683,14 @@ a.area-card,
   text-underline-offset: 4px;
 }
 @media (min-width: 1100px) {
-  .live-marketplace .product-grid {
+  .live-marketplace .product-grid,
+  .saved-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 @media (min-width: 1440px) {
-  .live-marketplace .product-grid {
+  .live-marketplace .product-grid,
+  .saved-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
@@ -2761,6 +2757,22 @@ a.area-card,
 .shop-heading h3 {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.shop-name-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.shop-name-row .favourite-control {
+  position: static;
+  flex-shrink: 0;
+}
+.shop-name-row .favourite-control--icon p {
+  right: auto;
+  left: 0;
+  max-width: 100%;
 }
 .shop-logo {
   width: 80px;
@@ -2979,18 +2991,21 @@ a.area-card,
   gap: 16px;
   margin-bottom: 24px;
 }
-.saved-collection-switch {
+.saved-collection-switch,
+.customer-tabs {
   display: flex;
   gap: 8px;
 }
-.saved-collection-switch button {
+.saved-collection-switch button,
+.customer-tabs button {
   padding: 12px 18px;
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   font-size: 14px;
 }
-.saved-collection-switch [aria-pressed="true"] {
+.saved-collection-switch [aria-pressed="true"],
+.customer-tabs [aria-selected="true"] {
   background: var(--lime);
   border-color: transparent;
   text-decoration: underline;

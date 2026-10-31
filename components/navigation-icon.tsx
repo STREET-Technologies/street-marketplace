@@ -19,8 +19,8 @@ export default function NavigationIcon({
     >
       {name === "profile" && (
         <>
-          <circle cx="12" cy="7" r="3.5" />
-          <path d="M4 21v-2a8 8 0 0 1 16 0v2Z" />
+          <circle cx="12" cy="7" r="3.5" fill={filled ? "currentColor" : "none"} />
+          <path d="M4 21v-2a8 8 0 0 1 16 0v2Z" fill={filled ? "currentColor" : "none"} />
         </>
       )}
       {name === "store" && (
@@ -34,7 +34,7 @@ export default function NavigationIcon({
       )}
       {name === "bag" && (
         <>
-          <path d="M4 8h16l-1 13H5L4 8Z" />
+          <path d="M4 8h16l-1 13H5L4 8Z" fill={filled ? "currentColor" : "none"} />
           <path d="M8 9V6a4 4 0 0 1 8 0v3" />
         </>
       )}

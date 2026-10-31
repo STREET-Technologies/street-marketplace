@@ -21,6 +21,18 @@ const tokens = {
 };
 function api(overrides: Partial<StreetApi> = {}): StreetApi {
   return {
+    async updateProfile() {
+      throw new Error("Not used in auth tests");
+    },
+    async saveAddress() {
+      throw new Error("Not used in auth tests");
+    },
+    async deleteAddress() {
+      throw new Error("Not used in auth tests");
+    },
+    async validateAddress() {
+      throw new Error("Not used in auth tests");
+    },
     async catalogue() {
       throw new Error("Not used in auth tests");
     },

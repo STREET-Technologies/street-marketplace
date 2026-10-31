@@ -3,7 +3,7 @@ import Saved from "../../components/saved";
 import "./style.css";
 export default function SavedPage() {
   return (
-    <CustomerPage title="Favourites">
+    <CustomerPage title="Wishlist">
       <Saved />
     </CustomerPage>
   );
