@@ -181,14 +181,41 @@ export function errorResponse(error: unknown): NextResponse {
 export async function handleVendors(request: NextRequest, api: StreetApi) {
   try {
     const params = new URL(request.url).searchParams;
-    if ([...params.keys()].some((key) => !["page", "addressId"].includes(key)))
+    if (
+      [...params.keys()].some(
+        (key) =>
+          !["page", "addressId", "latitude", "longitude", "category"].includes(
+            key,
+          ) || params.getAll(key).length !== 1,
+      )
+    )
       throw new ApiError(400, "Unsupported catalogue filter.");
     const page = Number(params.get("page") ?? 1);
     if (!Number.isSafeInteger(page) || page < 1 || page > 1000)
       throw new ApiError(400, "Invalid catalogue page.");
-    return json(
-      await api.vendors(page, await addressCoordinates(request, api)),
-    );
+    const category = params.get("category")?.trim();
+    if (params.has("category") && (!category || category.length > 120))
+      throw new ApiError(400, "Choose a valid shop category.");
+    let coordinates;
+    if (params.has("latitude") || params.has("longitude")) {
+      const latitude = params.get("latitude"),
+        longitude = params.get("longitude");
+      if (
+        params.has("addressId") ||
+        !latitude?.trim() ||
+        !longitude?.trim() ||
+        !Number.isFinite(Number(latitude)) ||
+        !Number.isFinite(Number(longitude)) ||
+        Math.abs(Number(latitude)) > 90 ||
+        Math.abs(Number(longitude)) > 180
+      )
+        throw new ApiError(400, "Choose a valid shop location.");
+      coordinates = {
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+      };
+    } else coordinates = await addressCoordinates(request, api);
+    return json(await api.vendors(page, coordinates, category));
   } catch (error) {
     return errorResponse(error);
   }

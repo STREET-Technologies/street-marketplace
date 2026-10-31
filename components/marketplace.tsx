@@ -1,14 +1,11 @@
 "use client";
+import { stockLabel } from "../lib/product-presentation";
 import { AddToBag } from "./cart";
-import {
-  DeliveryStatus,
-  FavouriteButton,
-  useCustomer,
-} from "./customer-context";
+import { FavouriteButton, useCustomer } from "./customer-context";
 import { readAccountData } from "../lib/client/session";
 
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type {
   OutletCard,
@@ -149,12 +146,42 @@ function Shops({
   params: Params;
   preview?: boolean;
 }) {
-  const { selected } = useCustomer();
+  const { selected, coordinates } = useCustomer();
   const page = preview ? 1 : Number(params.page || 1);
-  const state = useData<VendorPage>(
-    `/api/catalogue/vendors?page=${page}${selected ? "&addressId=" + encodeURIComponent(selected.id) : ""}`,
+  const query = new URLSearchParams({ page: String(page) });
+  if (selected) query.set("addressId", selected.id);
+  else if (coordinates) {
+    query.set("latitude", String(coordinates.latitude));
+    query.set("longitude", String(coordinates.longitude));
+  }
+  if (!preview && params.category) query.set("category", params.category);
+  const state = useData<VendorPage>(`/api/catalogue/vendors?${query}`);
+  const locationKey = selected?.id ?? JSON.stringify(coordinates);
+  const [cached, setCached] = useState<{
+    location: string;
+    categories: string[];
+  } | null>(null);
+  useEffect(() => {
+    if (state.data)
+      setCached({ location: locationKey, categories: state.data.categories });
+  }, [state.data, locationKey]);
+  const categories =
+    state.data?.categories ??
+    (cached?.location === locationKey ? cached.categories : []);
+  const filters = !preview && (
+    <CategoryFilter
+      categories={categories ?? []}
+      filterKey="category"
+      params={params}
+    />
   );
-  if (!state.data) return <LoadMessage {...state} />;
+  if (!state.data)
+    return (
+      <>
+        {filters}
+        <LoadMessage {...state} />
+      </>
+    );
   const outlets = params.vendorId
     ? state.data.outlets.filter(
         (o) =>
@@ -164,6 +191,15 @@ function Shops({
     : state.data.outlets;
   return (
     <>
+      {filters}
+      {!preview && (
+        <div className="results-bar">
+          <span>
+            {state.data.total} shops
+            {selected || coordinates ? " · Nearest first" : ""}
+          </span>
+        </div>
+      )}
       {params.vendorId && (
         <p className="catalogue-message">
           Choose a listed shop location to check its catalogue and stock. Saved
@@ -184,16 +220,40 @@ function Shops({
             >
               <Photo src={outlet.image} />
               <div>
-                <h3>{outlet.name}</h3>
-                <span className="shop-category">
-                  {[outlet.outletName, outlet.postcode]
+                <div className="shop-heading">
+                  <h3>{outlet.name}</h3>
+                  <ShopLogo src={outlet.logo} />
+                </div>
+                <p>
+                  {[
+                    outlet.outletName,
+                    outlet.category,
+                    !outlet.isOnline ? "Currently offline" : null,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
-                </span>
-                <p>
-                  {outlet.category || "Explore the collection"} ·{" "}
-                  {outlet.isOnline ? "Online" : "Currently offline"}
                 </p>
+                <div className="shop-address">
+                  {outlet.address || outlet.postcode ? (
+                    <a
+                      href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: [outlet.name, outlet.address, outlet.postcode].filter(Boolean).join(", ") })}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""} on Google Maps (opens in a new tab)`}
+                    >
+                      {[outlet.address, outlet.postcode]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </a>
+                  ) : (
+                    <span>Address unavailable</span>
+                  )}
+                  {outlet.distanceMiles !== null && (
+                    <span className="shop-distance">
+                      {outlet.distanceMiles.toFixed(1)} miles
+                    </span>
+                  )}
+                </div>
                 {outlet.outletId && (
                   <FavouriteButton
                     appearance="card"
@@ -221,7 +281,11 @@ function Shops({
         <p className="catalogue-message">
           {params.vendorId
             ? "This saved shop location is not listed on this page. Try another page, or browse the available shops."
-            : "No shops are available on this page."}{" "}
+            : params.category
+              ? "No shops in this category were found for this location."
+              : selected || coordinates
+                ? "No shops were found near this location. Choose another location in the menu above."
+                : "No shops are available on this page."}{" "}
           <Link href={href({ view: "shops" })}>Browse shops</Link>
         </p>
       )}
@@ -232,11 +296,7 @@ function Shops({
           params={params}
         />
       )}
-      {preview && state.data.total > 3 && (
-        <Link className="text-link" href={href({ view: "shops" })}>
-          See all shops →
-        </Link>
-      )}
+
     </>
   );
 }
@@ -285,12 +345,18 @@ function ProductGrid({
                   aria-label={`View ${p.title}`}
                 >
                   <Photo src={p.image} />
+                  <span className="product-view-label" aria-hidden="true">
+                    View product
+                  </span>
                 </Link>
               ) : (
                 <Photo src={p.image} />
               )}
             </div>
             <div className="product-info">
+              {p.productType && (
+                <small className="product-category">{p.productType}</small>
+              )}
               <div>
                 {ready ? (
                   <Link href={destination} onClick={open}>
@@ -301,11 +367,12 @@ function ProductGrid({
                 )}
                 <b>{money(p.price)}</b>
               </div>
-              <span className="product-shop">
-                {p.shopName ?? context.shop}
-                {p.outletName ? ` · ${p.outletName}` : ""}
-              </span>
-              <small>{p.productType}</small>
+              {context.view !== "catalogue" && (
+                <span className="product-shop">
+                  {p.shopName ?? context.shop}
+                  {p.outletName ? ` · ${p.outletName}` : ""}
+                </span>
+              )}
               {!ready && <p>Product details unavailable</p>}
             </div>
             {p.id && (
@@ -328,6 +395,172 @@ function ProductGrid({
     </div>
   );
 }
+function CategoryFilter({
+  categories,
+  filterKey = "productType",
+  params,
+}: {
+  categories: string[];
+  filterKey?: "productType" | "category";
+  params: Params;
+}) {
+  const row = useRef<HTMLElement>(null);
+  const [edges, setEdges] = useState({
+    overflow: false,
+    start: true,
+    end: true,
+  });
+  useEffect(() => {
+    const element = row.current;
+    if (!element) return;
+    const update = () =>
+      setEdges({
+        overflow: element.scrollWidth > element.clientWidth + 1,
+        start: element.scrollLeft <= 1,
+        end:
+          element.scrollLeft + element.clientWidth >= element.scrollWidth - 1,
+      });
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    element.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("scroll", update);
+    };
+  }, [categories]);
+  useEffect(() => {
+    const element = row.current,
+      active = element?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!element || !active) return;
+    if (
+      active.offsetLeft < element.scrollLeft ||
+      active.offsetLeft + active.offsetWidth >
+        element.scrollLeft + element.clientWidth
+    )
+      element.scrollTo({
+        left:
+          active.offsetLeft - (element.clientWidth - active.offsetWidth) / 2,
+      });
+  }, [params, filterKey]);
+  const scroll = (direction: number) =>
+    row.current?.scrollBy({
+      left: direction * row.current.clientWidth * 0.75,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    });
+  return (
+    <div className="category-strip" data-overflow={edges.overflow}>
+      <nav
+        ref={row}
+        className="catalogue-categories"
+        aria-label="Shop categories"
+        onKeyDown={(event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+            return;
+          const links = Array.from(event.currentTarget.querySelectorAll("a"));
+          const index = links.indexOf(event.target as HTMLAnchorElement);
+          if (index < 0) return;
+          event.preventDefault();
+          const next =
+            event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? links.length - 1
+                : Math.max(
+                    0,
+                    Math.min(
+                      links.length - 1,
+                      index + (event.key === "ArrowRight" ? 1 : -1),
+                    ),
+                  );
+          links[next]?.focus({ preventScroll: true });
+          const link = links[next];
+          if (link)
+            event.currentTarget.scrollTo({
+              left:
+                link.offsetLeft -
+                (event.currentTarget.clientWidth - link.offsetWidth) / 2,
+            });
+        }}
+      >
+        {[
+          { value: "", label: "All" },
+          ...categories.map((value) => ({ value, label: value })),
+        ].map((category) => {
+          const next = { ...params };
+          delete next.page;
+          if (category.value) next[filterKey] = category.value;
+          else delete next[filterKey];
+          return (
+            <Link
+              key={category.value}
+              href={href(next)}
+              scroll={false}
+              aria-current={
+                (params[filterKey] || "") === category.value
+                  ? "true"
+                  : undefined
+              }
+            >
+              {category.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <button
+        className="category-scroll category-scroll--previous"
+        aria-label="Previous categories"
+        hidden={!edges.overflow || edges.start}
+        onClick={() => scroll(-1)}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <path d="m14 5-7 7 7 7" />
+        </svg>
+      </button>
+      <button
+        className="category-scroll category-scroll--next"
+        aria-label="More categories"
+        hidden={!edges.overflow || edges.end}
+        onClick={() => scroll(1)}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <path d="m10 5 7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+function ShopLogo({ src }: { src: string | null }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!src || failed === src) return null;
+  return (
+    <img
+      className="shop-logo"
+      src={src}
+      alt=""
+      onError={() => setFailed(src)}
+    />
+  );
+}
 function Products({
   params,
   coordinates,
@@ -336,7 +569,6 @@ function Products({
   coordinates: Coordinates | null;
 }) {
   const { selected } = useCustomer();
-  const router = useRouter();
   const search = params.view === "search";
   const query = new URLSearchParams({
     kind: search ? "search" : "products",
@@ -349,15 +581,20 @@ function Products({
     query.set("longitude", String(coordinates.longitude));
   }
   if (!search) {
+    if (params.productType) query.set("productType", params.productType);
     query.set("vendorId", params.vendorId || "");
     query.set("locationGid", params.locationGid || "");
   }
   const state = useData<ProductPage>(`/api/catalogue/browse?${query}`);
+  const [cachedFacets, cacheFacets] = useState<ProductPage["facets"] | null>(
+    null,
+  );
+  useEffect(() => {
+    if (state.data && !search) cacheFacets(state.data.facets ?? []);
+  }, [state.data, search]);
+  const facets = state.data?.facets ?? cachedFacets;
   return (
     <section className="catalogue">
-      {!search && params.outletId && (
-        <DeliveryStatus vendorId={params.vendorId} outletId={params.outletId} />
-      )}
       <div className="catalogue-intro">
         <h1>
           {search
@@ -375,40 +612,11 @@ function Products({
                 .join(" · ")}
         </p>
       </div>
-      {!search && (
-        <form
-          className="search-form collection-search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const next: Params = {
-              ...params,
-              query: String(
-                new FormData(event.currentTarget).get("query") || "",
-              ).trim(),
-            };
-            delete next.page;
-            router.push(href(next));
-          }}
-          action="/"
-          role="search"
-        >
-          {Object.entries(params)
-            .filter(([k]) => !["query", "page"].includes(k))
-            .map(([k, v]) => (
-              <input key={k} type="hidden" name={k} value={v} />
-            ))}
-          <label className="sr-only" htmlFor="collection-query">
-            Search this shop
-          </label>
-          <input
-            id="collection-query"
-            name="query"
-            maxLength={120}
-            defaultValue={params.query}
-            placeholder="Search this shop"
-          />
-          <button type="submit">Search</button>
-        </form>
+      {!search && facets && (
+        <CategoryFilter
+          categories={facets.map((f) => f.productType)}
+          params={params}
+        />
       )}
       {!state.data ? (
         <LoadMessage {...state} />
@@ -430,7 +638,6 @@ function Products({
         <>
           <div className="results-bar">
             <span>{state.data.total} products</span>
-            <Link href="/saved">Your saved finds →</Link>
           </div>
           <ProductGrid products={state.data.products} context={params} />
           {!state.data.products.length && (
@@ -521,6 +728,8 @@ function ProductGallery({
   const [index, select] = useState(0);
   const gallery = useRef<HTMLDivElement>(null);
   const multiple = images.length > 1;
+  const previewLimit = 5;
+  const extraImages = Math.max(0, images.length - previewLimit);
   const move = (direction: number) =>
     select((current) => (current + direction + images.length) % images.length);
   useEffect(() => {
@@ -618,7 +827,7 @@ function ProductGallery({
             role="group"
             aria-label="Product image previews"
           >
-            {images.map((src, i) => (
+            {images.slice(0, previewLimit).map((src, i) => (
               <button
                 key={src + i}
                 aria-label={`Show image ${i + 1}`}
@@ -628,6 +837,16 @@ function ProductGallery({
                 <Photo src={src} />
               </button>
             ))}
+            {extraImages > 0 && (
+              <button
+                className="gallery-more"
+                aria-label={`${extraImages} more images. Show image ${previewLimit + 1}`}
+                aria-pressed={index >= previewLimit}
+                onClick={() => select(previewLimit)}
+              >
+                +{extraImages}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -667,14 +886,18 @@ function Product({
           <ProductGallery images={product.images} title={product.title} />
           <div className="detail-copy">
             <p>{[params.shop, params.branch].filter(Boolean).join(" · ")}</p>
-            {overlay ? <h2>{product.title}</h2> : <h1>{product.title}</h1>}
-            <FavouriteButton
-              target={{
-                kind: "product",
-                vendorId: params.vendorId,
-                productId: product.id,
-              }}
-            />
+            <div className="product-title-row">
+              {overlay ? <h2>{product.title}</h2> : <h1>{product.title}</h1>}
+              <FavouriteButton
+                appearance="icon"
+                name={product.title}
+                target={{
+                  kind: "product",
+                  vendorId: params.vendorId,
+                  productId: product.id,
+                }}
+              />
+            </div>
             <p className="detail-price">
               {selected
                 ? money(selected.price)
@@ -682,6 +905,9 @@ function Product({
                   ? `From ${money(Math.min(...product.variants.map((v) => v.price ?? Infinity)))}`
                   : "Price unavailable"}
             </p>
+            {product.description && (
+              <p className="product-description">{product.description}</p>
+            )}
             <fieldset>
               <legend>Choose a variant to see its availability</legend>
               <div className="sizes">
@@ -693,7 +919,6 @@ function Product({
                     onClick={() => selectVariant(v.id)}
                   >
                     {v.title}
-                    {variantId === v.id ? " ✓" : ""}
                     {v.inventory === 0 ? " · Out of stock" : ""}
                   </button>
                 ))}
@@ -701,11 +926,7 @@ function Product({
             </fieldset>
             <p role="status" className="stock-status">
               {selected
-                ? selected.inventory === null
-                  ? "Availability unavailable"
-                  : selected.inventory > 0
-                    ? `${selected.inventory} available at this shop location`
-                    : "Out of stock at this shop location"
+                ? stockLabel(selected.inventory)
                 : "Select a variant above."}
             </p>
             <AddToBag
@@ -720,19 +941,6 @@ function Product({
             />
             <Link className="text-link product-shop-link" href={href(back)}>
               See more from this shop →
-            </Link>
-            {params.outletId && (
-              <DeliveryStatus
-                vendorId={params.vendorId}
-                outletId={params.outletId}
-              />
-            )}
-            <p>
-              Browsing is available in this staging version. No order or payment
-              can be created here.
-            </p>
-            <Link className="text-link" href="/saved">
-              View your saved finds →
             </Link>
           </div>
         </div>
@@ -825,41 +1033,89 @@ function Hero() {
             >
               <source src="/assets/product-editorial.mp4" type="video/mp4" />
             </video>
-            <button
-              className="video-control"
-              aria-controls="hero-video"
-              onClick={() => setPaused((v) => !v)}
-            >
-              {paused ? "Play" : "Pause"} video
-            </button>
+
           </>
         )}
       </div>
+      {!failed && (
+        <button
+          className="video-control"
+          aria-controls="hero-video"
+          aria-label={paused ? "Play video" : "Pause video"}
+          onClick={() => setPaused((v) => !v)}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            {paused ? <path d="M8 5v14l11-7Z" /> : <path d="M6 5h4v14H6zM14 5h4v14h-4z" />}
+          </svg>
+        </button>
+      )}
     </section>
   );
 }
-function AreaCards() {
+function AreaCards({ exclude, carousel = false }: { exclude?: string; carousel?: boolean }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: true, end: false });
+  useEffect(() => {
+    const element = track.current;
+    if (!carousel || !element) return;
+    const update = () => setEdges({ start: element.scrollLeft <= 1, end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1 });
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    element.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => { observer.disconnect(); element.removeEventListener("scroll", update); };
+  }, [carousel]);
+  const move = (direction: number) => {
+    const element = track.current;
+    if (!element) return;
+    const gap = parseFloat(getComputedStyle(element).columnGap);
+    const pageWidth = element.clientWidth + gap;
+    element.scrollTo({ left: (Math.round(element.scrollLeft / pageWidth) + direction) * pageWidth, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  };
   return (
-    <div className="area-grid">
-      {areas.map((a, i) => (
-        <Link
-          className="area-card"
-          key={a.name}
-          href={href({ view: "area", area: String(i) })}
-        >
-          <img
-            src={"/assets/" + a.image}
-            alt={`A view of ${a.name}`}
-            loading="lazy"
-          />
-          <div>
-            <h3>{a.name}</h3>
-            <span className="area-description">{a.line}</span>
-            <span aria-hidden="true">→</span>
-          </div>
-        </Link>
-      ))}
+    <>
+    {carousel && <div className="section-heading area-carousel-heading">
+      <h2>Every street has a story.</h2>
+      <div className="area-carousel-controls" aria-label="Neighbourhood carousel controls">
+        <button aria-label="Previous neighbourhoods" aria-controls="discover-neighbourhoods" disabled={edges.start} onClick={() => move(-1)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg></button>
+        <button aria-label="Next neighbourhoods" aria-controls="discover-neighbourhoods" disabled={edges.end} onClick={() => move(1)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m10 5 7 7-7 7" /></svg></button>
+      </div>
+    </div>}
+    <div ref={track} id={carousel ? "discover-neighbourhoods" : undefined} className={`area-grid${carousel ? " area-carousel" : ""}`} role={carousel ? "region" : undefined} aria-label={carousel ? "Explore neighbourhoods" : undefined}>
+
+      {areas.map((a, i) =>
+        a.name === exclude ? null : (
+          <Link
+            className="area-card"
+            key={a.name}
+            href={href({ view: "area", area: String(i) })}
+          >
+            <img
+              src={"/assets/" + a.image}
+              alt={`A view of ${a.name}`}
+              loading="lazy"
+            />
+            <div>
+              <h3>{a.name}</h3>
+              <span className="area-description">{a.line}</span>
+              <svg
+                className="area-arrow"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <path d="M4 12h16m-6-6 6 6-6 6" />
+              </svg>
+            </div>
+          </Link>
+        ),
+      )}
     </div>
+    </>
   );
 }
 function Neighbourhood({ index }: { index: number }) {
@@ -871,27 +1127,22 @@ function Neighbourhood({ index }: { index: number }) {
           <img src={"/assets/" + area.image} alt={area.name} />
         </div>
         <div className="local-copy">
-          <h1>
-            {area.headline.map((line, i) => (
-              <span key={line}>
-                {i > 0 && <br />}
-                {line}
-              </span>
-            ))}
-          </h1>
+          <h1>{area.headline.join(" ")}</h1>
           <p>{area.intro}</p>
-          <Link className="primary" href={href({ view: "shops" })}>
+          <p className="area-note">
+            An introduction to the area. Browse the full STREET collection
+            below.
+          </p>
+          <Link className="secondary" href={href({ view: "shops" })}>
             Browse STREET shops →
           </Link>
-          <p>
-            Explore the neighbourhood for inspiration. This guide does not set
-            your delivery or search location.
-          </p>
         </div>
       </section>
       <section className="section">
-        <h2>Keep wandering.</h2>
-        <AreaCards />
+        <div className="section-heading">
+          <h2>Keep wandering.</h2>
+        </div>
+        <AreaCards exclude={area.name} />
       </section>
     </>
   );
@@ -918,22 +1169,13 @@ export default function Marketplace() {
               <Shops params={{}} preview />
             </section>
             <section className="section">
-              <div className="section-heading">
-                <h2>Every street has a story.</h2>
-              </div>
-              <AreaCards />
+              <AreaCards carousel />
             </section>
           </>
         )}
         {view === "shops" && (
           <section className="catalogue">
-            <div className="catalogue-intro">
-              <h1>Step inside.</h1>
-              <p>
-                Explore the shops on STREET. Choose a location to browse its
-                products.
-              </p>
-            </div>
+            <h1 className="sr-only">Shop all</h1>
             <Shops params={params} />
           </section>
         )}
@@ -952,11 +1194,7 @@ export default function Marketplace() {
         )}
         {view === "neighbourhoods" && (
           <section className="section neighbourhood-intro">
-            <h1>
-              Where shall
-              <br />
-              we wander?
-            </h1>
+            <h1>Where shall we wander?</h1>
             <p>
               Different streets. Different discoveries. Find your corner of
               London.
@@ -980,21 +1218,7 @@ export default function Marketplace() {
           </section>
         )}
       </main>
-      <footer className="frame footer">
-        <span className="footer-brand">STREET</span>
-        <div>
-          Your high street. Delivered.
-          <small>
-            Staging catalogue. No orders or payments.
-            <br />
-            Neighbourhood photography and hero video are editorial
-            illustrations.
-          </small>
-        </div>
-        <Link className="text-link" href="/account">
-          Your profile →
-        </Link>
-      </footer>
+
     </>
   );
 }

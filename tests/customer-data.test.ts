@@ -8,6 +8,7 @@ import {
   handleDeliveryCheck,
   handleCatalogue,
   handleCustomerContext,
+  handleVendors,
 } from "../lib/server/web-api.ts";
 const vendorId = "4a29e85a-92fd-47da-88a2-96fcbd78b557",
   outletId = "c769d5ce-e495-41c9-a5a9-88a7f2826484",
@@ -234,4 +235,23 @@ test("customer context is cookie scoped and strips personal upstream metadata fr
   assert.equal(data.userId, "customer");
   assert.equal(data.favourites.length, 2);
   assert.ok(!JSON.stringify(data).includes("PRIVATE"));
+});
+
+
+test("nearby shops resolve only the signed-in customer's saved address", async () => {
+  const calls: URL[] = [];
+  const api = createStreetApi(async (url,init) => {
+    const parsed = new URL(String(url)); calls.push(parsed);
+    if(parsed.pathname.endsWith("/user-addresses")) {
+      assert.equal(new Headers(init?.headers).get("authorization"),"Bearer customer-token");
+      return envelope([address]);
+    }
+    assert.equal(parsed.searchParams.get("user_latitude"),"51.51");
+    assert.equal(parsed.searchParams.get("user_longitude"),"-0.13");
+    return envelope({data:[],meta:{total:0,page:1,totalPages:0}});
+  });
+  assert.equal((await handleVendors(request(`catalogue/vendors?addressId=${addressId}`),api)).status,200);
+  assert.equal(calls.length,2);
+  assert.equal((await handleVendors(request(`catalogue/vendors?addressId=${productId}`),api)).status,404);
+  assert.equal(calls.length,3);
 });

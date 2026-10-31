@@ -64,7 +64,7 @@ test("catalogue projection excludes vendor secrets, rejects malformed data and r
         },
       ],
       meta: { total: 25 },
-      vendor: { apiToken: "SECRET" },
+      vendor: { apiToken: "SECRET", logo: "https://cdn.example/logo.svg" },
     },
     catalogueQuery(params()),
   );
@@ -126,6 +126,7 @@ test("product details retain variant identity and unknown stock, dropping untrus
   const product = productDetailFrom({
     id: productId,
     title: "Coat",
+    description: "Soft cotton.\nMachine washable.",
     images: [
       { src: "https://cdn.example/coat.jpg" },
       { src: "data:text/html,bad" },
@@ -142,6 +143,7 @@ test("product details retain variant identity and unknown stock, dropping untrus
     ],
     vendor: { token: "SECRET" },
   });
+  assert.equal(product.description, "Soft cotton.\nMachine washable.");
   assert.deepEqual(product.variants[0], {
     id: "44166662783110",
     title: "XS",
@@ -182,4 +184,62 @@ test("catalogue route forwards only validated staging queries and does not expos
   );
   assert.equal(bad.status, 400);
   assert.equal(calls, 1);
+});
+
+test("product descriptions preserve text and omit missing or malformed values", () => {
+  const base = { id: productId, title: "Coat", images: [], variants: [] };
+  for (const description of [null, undefined, "", {}, 42]) {
+    assert.equal(productDetailFrom({ ...base, description }).description, null);
+  }
+  assert.equal(
+    productDetailFrom({ ...base, description: "<script>alert(1)</script>" })
+      .description,
+    "<script>alert(1)</script>",
+  );
+});
+
+test("shop categories use outlet-wide backend facets and filter before pagination", () => {
+  const query = catalogueQuery(
+    params({ productType: "Shoes & Boots", page: "2", query: "leather" }),
+  );
+  const path = new URL(cataloguePath(query), "https://staging.invalid");
+  assert.equal(path.searchParams.get("productType"), "Shoes & Boots");
+  assert.equal(path.searchParams.get("includeFacets"), "true");
+  assert.equal(path.searchParams.get("locationGid"), locationGid);
+  assert.equal(path.searchParams.get("page"), "2");
+  assert.equal(path.searchParams.get("search"), "leather");
+  assert.equal(
+    new URL(
+      cataloguePath(catalogueQuery(params())),
+      "https://staging.invalid",
+    ).searchParams.has("productType"),
+    false,
+  );
+  const result = productPageFrom(
+    {
+      data: [],
+      meta: { total: 0 },
+      facets: [
+        { productType: "Boots", count: 30 },
+        { productType: "Coats", count: "4" },
+        { productType: "", count: 5 },
+        { productType: "Invalid", count: -1 },
+      ],
+    },
+    query,
+  );
+  assert.deepEqual(result.facets, [
+    { productType: "Boots", count: 30 },
+    { productType: "Coats", count: 4 },
+  ]);
+  assert.throws(() => catalogueQuery(params({ productType: "a".repeat(121) })));
+  assert.throws(() =>
+    catalogueQuery(
+      new URLSearchParams({
+        kind: "search",
+        query: "coat",
+        productType: "Coats",
+      }),
+    ),
+  );
 });

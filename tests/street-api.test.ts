@@ -122,3 +122,86 @@ test("projections keep outlet identity and exclude private/customer credential f
   assert.throws(() => vendorPageFrom({ data: [], meta: {} }), ApiError);
   assert.throws(() => customerFrom({ email: "no-id" }), ApiError);
 });
+
+test("nearby shops aggregate all vendor pages before sorting, category filtering and outlet pagination", async () => {
+  const rows = Array.from({ length: 14 }, (_, i) => ({
+    id: "vendor",
+    outletId: `outlet-${i}`,
+    storeName: `Shop ${i}`,
+    vendorCategory: i % 2 ? "Fashion" : "Activewear",
+    address: `${i} High Street`,
+    postcode: "W1F 9PT",
+    distance: 14 - i,
+    logo: "private-unused",
+    storefrontAccessToken: "secret",
+  }));
+  const calls: URL[] = [];
+  const api = createStreetApi(async (url) => {
+    const query = new URL(String(url));
+    calls.push(query);
+    const page = Number(query.searchParams.get("page"));
+    return Response.json({
+      data: {
+        data:
+          page === 1
+            ? rows.slice(0, 8)
+            : page === 2
+              ? []
+              : [rows[0], ...rows.slice(8)],
+        meta: { total: 14, page, totalPages: 3 },
+      },
+    });
+  });
+  const coordinates = { latitude: 51.5, longitude: -0.1 };
+  const first = await api.vendors(1, coordinates);
+  assert.equal(calls.length, 3);
+  assert.ok(
+    calls.every(
+      (u) =>
+        u.searchParams.get("user_latitude") === "51.5" &&
+        u.searchParams.get("user_longitude") === "-0.1",
+    ),
+  );
+  assert.deepEqual(first.categories, ["Activewear", "Fashion"]);
+  assert.equal(first.total, 14);
+  assert.equal(first.totalPages, 2);
+  assert.deepEqual(
+    first.outlets.map((o) => o.distanceMiles),
+    Array.from({ length: 12 }, (_, i) => i + 1),
+  );
+  assert.equal(first.outlets[0].address, "13 High Street");
+  assert.equal(first.outlets[0].postcode, "W1F 9PT");
+  assert.equal(JSON.stringify(first).includes("secret"), false);
+  const second = await api.vendors(2, coordinates);
+  assert.deepEqual(
+    second.outlets.map((o) => o.distanceMiles),
+    [13, 14],
+  );
+  const filtered = await api.vendors(1, coordinates, "Fashion");
+  assert.equal(filtered.total, 7);
+  assert.deepEqual(filtered.categories, first.categories);
+  assert.ok(filtered.outlets.every((o) => o.category === "Fashion"));
+  const empty = await api.vendors(1, coordinates, "Missing");
+  assert.equal(empty.total, 0);
+  assert.deepEqual(empty.categories, first.categories);
+});
+
+test("shop projection never presents unknown or invalid distance as zero", () => {
+  for (const distance of [undefined, null, -1, "2", Infinity]) {
+    const page = vendorPageFrom({
+      data: [{ id: "v", storeName: "Shop", distance }],
+      meta: { total: 1, page: 1, totalPages: 1 },
+    });
+    assert.equal(page.outlets[0].distanceMiles, null);
+    assert.equal(page.outlets[0].address, null);
+  }
+});
+
+
+test("shop cards project safe logos without vendor integration fields", () => {
+  for (const [logo, expected] of [["https://cdn.example/logo.svg", "https://cdn.example/logo.svg"], [null,null], ["javascript:alert(1)",null], ["http://insecure.example/logo.png",null]]) {
+    const result = vendorPageFrom({data:[{id:"v",storeName:"Shop",logo,storefrontAccessToken:"SECRET"}],meta:{total:1,page:1,totalPages:1}});
+    assert.equal(result.outlets[0].logo,expected);
+    assert.equal(JSON.stringify(result).includes("SECRET"),false);
+  }
+});

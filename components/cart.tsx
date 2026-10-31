@@ -1,4 +1,5 @@
 "use client";
+import NavigationIcon from "./navigation-icon";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type {
@@ -164,7 +165,13 @@ export function BagLink({ active = false }: { active?: boolean }) {
       aria-label={`Bag, ${count} items`}
       aria-current={active ? "page" : undefined}
     >
-      Bag{count > 0 ? ` (${count})` : ""}
+      <NavigationIcon name="bag" />
+      <span>Bag</span>
+      {count > 0 && (
+        <span className="bag-count" aria-hidden="true">
+          {count}
+        </span>
+      )}
     </Link>
   );
 }

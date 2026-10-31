@@ -1,4 +1,5 @@
 "use client";
+import NavigationIcon from "./navigation-icon";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
@@ -12,9 +13,14 @@ export default function MarketplaceHeader() {
   const { selected, coordinates, select, useDeviceLocation } = useCustomer();
   const dialog = useRef<HTMLDialogElement>(null);
   const request = useRef(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const view = pathname === "/" ? params.get("view") || "discover" : null;
+  const shopSearch = pathname === "/" && params.get("view") === "catalogue";
+  const searchLabel = shopSearch
+    ? `Search ${params.get("shop") || "this shop"}`
+    : "Search products";
   const location = selected
     ? `${selected.label} · ${selected.postcode}`
     : coordinates
@@ -69,7 +75,53 @@ export default function MarketplaceHeader() {
           <Link className="wordmark" href="/" aria-label="Street home">
             STREET
           </Link>
-          <span className="header-divider" />
+          <form
+            className="search-form"
+            action="/"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const query = String(
+                new FormData(event.currentTarget).get("query") || "",
+              ).trim();
+              const next = shopSearch
+                ? new URLSearchParams(params)
+                : new URLSearchParams({ view: "search" });
+              next.delete("page");
+              if (query) next.set("query", query);
+              else next.delete("query");
+              if (query || shopSearch) router.push(`/?${next}`);
+            }}
+          >
+            {shopSearch ? (
+              [...params.entries()]
+                .filter(([key]) => !["query", "page"].includes(key))
+                .map(([key, value]) => (
+                  <input type="hidden" key={key} name={key} value={value} />
+                ))
+            ) : (
+              <input type="hidden" name="view" value="search" />
+            )}
+            <label className="sr-only" htmlFor="search">
+              {searchLabel}
+            </label>
+            <input
+              id="search"
+              name="query"
+              key={params.get("query") || ""}
+              defaultValue={params.get("query") || ""}
+              maxLength={120}
+              placeholder={
+                shopSearch
+                  ? searchLabel
+                  : "Search products and discover local finds"
+              }
+              required={!shopSearch}
+            />
+            <button type="submit" aria-label={searchLabel}>
+              <NavigationIcon name="search" />
+            </button>
+          </form>
           <button
             id="location-trigger"
             className="location-button"
@@ -77,9 +129,11 @@ export default function MarketplaceHeader() {
             aria-controls="location-picker"
             onClick={() => {
               setError("");
+              setPickerOpen(true);
               dialog.current?.showModal();
             }}
           >
+            <NavigationIcon name="location" />
             <span>
               <small>Search near</small>
               <b>{location}</b>
@@ -96,36 +150,6 @@ export default function MarketplaceHeader() {
               <path d="m6 9 6 6 6-6" />
             </svg>
           </button>
-          <form
-            className="search-form"
-            action="/"
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const query = String(
-                new FormData(event.currentTarget).get("query") || "",
-              ).trim();
-              if (query)
-                router.push(
-                  `/?${new URLSearchParams({ view: "search", query })}`,
-                );
-            }}
-          >
-            <input type="hidden" name="view" value="search" />
-            <label className="sr-only" htmlFor="search">
-              Search products
-            </label>
-            <input
-              id="search"
-              name="query"
-              key={params.get("query") || ""}
-              defaultValue={params.get("query") || ""}
-              maxLength={120}
-              placeholder="Find your next good find"
-              required
-            />
-            <button type="submit">Search</button>
-          </form>
           <HeaderActions />
         </header>
         <div className="nav-line">
@@ -156,6 +180,7 @@ export default function MarketplaceHeader() {
         aria-labelledby="location-title"
         onCancel={close}
         onClose={() => {
+          setPickerOpen(false);
           request.current++;
           setLocating(false);
         }}
@@ -211,12 +236,14 @@ export default function MarketplaceHeader() {
             Finding your location…
           </p>
         )}
-        <SavedAddressOptions
-          onSelect={() => {
-            resetPage();
-            close();
-          }}
-        />
+        {pickerOpen && (
+          <SavedAddressOptions
+            onSelect={() => {
+              resetPage();
+              close();
+            }}
+          />
+        )}
         {coordinates && (
           <button
             className="text-link"

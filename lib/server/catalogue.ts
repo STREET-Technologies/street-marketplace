@@ -15,6 +15,7 @@ export type CatalogueQuery = {
   productId?: string;
   locationGid?: string;
   query?: string;
+  productType?: string;
   latitude?: number;
   longitude?: number;
 };
@@ -27,6 +28,7 @@ export function catalogueQuery(params: URLSearchParams): CatalogueQuery {
     "productId",
     "locationGid",
     "query",
+    "productType",
     "latitude",
     "longitude",
   ];
@@ -61,6 +63,12 @@ export function catalogueQuery(params: URLSearchParams): CatalogueQuery {
       if (!uuid.test(productId)) throw new ApiError(400, "Invalid product.");
       result.productId = productId;
     }
+  }
+  if (params.has("productType")) {
+    const productType = params.get("productType")!.trim();
+    if (kind !== "products" || !productType || productType.length > 120)
+      throw new ApiError(400, "Choose a valid shop category.");
+    result.productType = productType;
   }
   const query = (params.get("query") ?? "").trim();
   if (query.length > 120 || (kind === "search" && !query))
@@ -133,6 +141,20 @@ export function productPageFrom(
   });
   return {
     products,
+    facets: Array.isArray(data.facets)
+      ? data.facets.flatMap((value) => {
+          const facet = object(value),
+            productType = text(facet.productType)?.trim(),
+            total = count(
+              typeof facet.count === "string" && /^\d+$/.test(facet.count)
+                ? Number(facet.count)
+                : facet.count,
+            );
+          return productType && total !== null
+            ? [{ productType, count: total }]
+            : [];
+        })
+      : [],
     page: query.page,
     total: Number(meta.total),
     totalPages: Math.ceil(Number(meta.total) / 12),
@@ -147,6 +169,7 @@ export function productDetailFrom(value: unknown): ProductDetail {
   return {
     id: required(p.id),
     title: required(p.title),
+    description: text(p.description)?.trim() || null,
     images: p.images
       .map((v) => image(object(v).src))
       .filter((v): v is string => Boolean(v)),
@@ -173,6 +196,10 @@ export function cataloguePath(query: CatalogueQuery): string {
   if (query.kind !== "product") {
     params.set("page", String(query.page));
     params.set("limit", "12");
+  }
+  if (query.kind === "products") {
+    params.set("includeFacets", "true");
+    if (query.productType) params.set("productType", query.productType);
   }
   if (query.kind === "products" && query.query)
     params.set("search", query.query);

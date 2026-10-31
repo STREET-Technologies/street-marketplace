@@ -14,11 +14,15 @@ export interface OutletCard {
   outletName: string | null;
   category: string | null;
   image: string | null;
+  logo: string | null;
   postcode: string | null;
+  address: string | null;
+  distanceMiles: number | null;
   isOnline: boolean;
 }
 
 export interface VendorPage {
+  categories: string[];
   outlets: OutletCard[];
   total: number;
   page: number;
@@ -59,6 +63,7 @@ export interface ProductCard {
   outletName: string | null;
 }
 export interface ProductPage {
+  facets: { productType: string; count: number }[];
   products: ProductCard[];
   page: number;
   total: number;
@@ -69,6 +74,7 @@ export interface ProductPage {
 export interface ProductDetail {
   id: string;
   title: string;
+  description: string | null;
   images: string[];
   variants: {
     id: string;

@@ -1,4 +1,5 @@
 "use client";
+import NavigationIcon from "./navigation-icon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BagLink } from "./cart";
@@ -18,7 +19,8 @@ export default function HeaderActions() {
           className="header-action"
           aria-current={pathname === href ? "page" : undefined}
         >
-          {label}
+          <NavigationIcon name={href === "/account" ? "profile" : "heart"} />
+          <span>{label}</span>
         </Link>
       ))}
       <BagLink active={pathname === "/bag"} />

@@ -70,6 +70,7 @@ export function vendorPageFrom(value: unknown): VendorPage {
     throw new ApiError(502, "STREET returned an unexpected catalogue.");
   }
   return {
+    categories: [],
     outlets: data.data.map((value) => {
       const vendor = record(value);
       const image = optionalString(vendor.storeImage);
@@ -81,7 +82,15 @@ export function vendorPageFrom(value: unknown): VendorPage {
         outletName: optionalString(vendor.outletName),
         category: optionalString(vendor.vendorCategory),
         image: image?.startsWith("https://") ? image : null,
+        logo: imageUrl(vendor.logo),
         postcode: optionalString(vendor.postcode),
+        address: optionalString(vendor.address),
+        distanceMiles:
+          typeof vendor.distance === "number" &&
+          Number.isFinite(vendor.distance) &&
+          vendor.distance >= 0
+            ? vendor.distance
+            : null,
         isOnline: vendor.isOnline === true,
       };
     }),
@@ -252,13 +261,49 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
     async vendors(
       page: number,
       coordinates?: { latitude: number; longitude: number },
-    ) {
-      const params = new URLSearchParams({ page: String(page), limit: "12" });
+      category?: string,
+    ): Promise<VendorPage> {
+      // Upstream paginates vendors before expanding/filtering outlets. Gather every
+      // page before category filtering and pagination so nearest-first is global.
+      const params = new URLSearchParams({ limit: "100" });
       if (coordinates) {
         params.set("user_latitude", String(coordinates.latitude));
         params.set("user_longitude", String(coordinates.longitude));
       }
-      return vendorPageFrom(await request(`/vendors?${params}`));
+      const outlets = new Map<string, OutletCard>();
+      for (let upstreamPage = 1; ; upstreamPage++) {
+        params.set("page", String(upstreamPage));
+        const result = vendorPageFrom(await request(`/vendors?${params}`));
+        for (const outlet of result.outlets)
+          outlets.set(outlet.vendorId + ":" + outlet.outletId, outlet);
+        if (upstreamPage >= result.totalPages) break;
+        // Fail explicitly rather than return a misleading partial nearby directory.
+        if (upstreamPage >= 20)
+          throw new ApiError(
+            502,
+            "The shop directory is too large to load. Please try again later.",
+          );
+      }
+      const all = [...outlets.values()];
+      const categories = [
+        ...new Set(all.flatMap((o) => (o.category ? [o.category] : []))),
+      ].sort((a, b) => a.localeCompare(b));
+      const filtered = all.filter((o) => !category || o.category === category);
+      if (coordinates)
+        filtered.sort(
+          (a, b) =>
+            (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity) ||
+            a.name.localeCompare(b.name) ||
+            (a.outletId ?? "").localeCompare(b.outletId ?? ""),
+        );
+      const limit = 12;
+      return {
+        outlets: filtered.slice((page - 1) * limit, page * limit),
+        categories,
+        page,
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / limit),
+      };
     },
     async addresses(token: string) {
       return addressesFrom(

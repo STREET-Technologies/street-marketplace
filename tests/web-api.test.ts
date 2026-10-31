@@ -55,7 +55,7 @@ function api(overrides: Partial<StreetApi> = {}): StreetApi {
       };
     },
     async vendors() {
-      return { outlets: [], total: 0, page: 1, totalPages: 0 };
+      return { outlets: [], categories: [], total: 0, page: 1, totalPages: 0 };
     },
     ...overrides,
   };
@@ -321,5 +321,48 @@ test("catalogue adapter accepts only bounded pagination, never arbitrary upstrea
       )
     ).status,
     200,
+  );
+});
+
+test("shop discovery validates location/category filters and forwards device coordinates", async () => {
+  let captured: unknown[] = [];
+  const service = api({
+    async vendors(...args) {
+      captured = args;
+      return { outlets: [], categories: [], page: 1, total: 0, totalPages: 0 };
+    },
+  });
+  const call = (query: string) =>
+    handleVendors(
+      new NextRequest(
+        `https://marketplace.example/api/catalogue/vendors?${query}`,
+      ),
+      service,
+    );
+  assert.equal(
+    (await call("latitude=51.5&longitude=-0.1&category=Fashion&page=2")).status,
+    200,
+  );
+  assert.deepEqual(captured, [
+    2,
+    { latitude: 51.5, longitude: -0.1 },
+    "Fashion",
+  ]);
+  for (const query of [
+    "latitude=51",
+    "longitude=0",
+    "latitude=&longitude=0",
+    "latitude=91&longitude=0",
+    "latitude=0&longitude=181",
+    "latitude=NaN&longitude=0",
+    "page=1&page=2",
+    "category=",
+    "category=" + "a".repeat(121),
+    "latitude=0&longitude=0&addressId=x",
+  ])
+    assert.equal((await call(query)).status, 400, query);
+  assert.equal(
+    (await call("addressId=17e49931-5ad0-44f8-895a-393752d2babb")).status,
+    401,
   );
 });

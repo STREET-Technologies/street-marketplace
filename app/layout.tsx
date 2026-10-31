@@ -2,6 +2,7 @@ import { CartProvider } from "../components/cart";
 import { CustomerProvider } from "../components/customer-context";
 import { Suspense } from "react";
 import MarketplaceHeader from "../components/marketplace-header";
+import MarketplaceFooter from "../components/marketplace-footer";
 import type { Metadata } from "next";
 import "../style.css";
 
@@ -38,6 +39,7 @@ export default function RootLayout({
               <MarketplaceHeader />
             </Suspense>
             {children}
+            <MarketplaceFooter />
           </CartProvider>
         </CustomerProvider>
       </body>
