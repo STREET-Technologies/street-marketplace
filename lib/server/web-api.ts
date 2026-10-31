@@ -19,7 +19,7 @@ export function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: privateHeaders });
 }
 
-function setSession(response: NextResponse, tokens: Tokens | null) {
+export function setSession(response: NextResponse, tokens: Tokens | null) {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV !== "development",
@@ -63,6 +63,7 @@ export function requireSameOrigin(request: Request) {
 
 export async function smallJson(
   request: Request,
+  limit = 2048,
 ): Promise<Record<string, unknown>> {
   const reader = request.body?.getReader();
   if (!reader) throw new ApiError(400, "Please provide your details.");
@@ -72,7 +73,7 @@ export async function smallJson(
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > 2048) {
+    if (size > limit) {
       await reader.cancel();
       throw new ApiError(413, "The request is too large.");
     }

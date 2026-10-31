@@ -5,6 +5,7 @@ import { CustomerEmptyState } from "./customer-page";
 import CustomerTabs from "./customer-tabs";
 import ProfileDetails from "./profile-details";
 import ProfileAddresses from "./profile-addresses";
+import GoogleSignIn from "./google-sign-in";
 import type { Customer } from "../lib/contracts";
 import { currentCustomer, sessionRequest } from "../lib/client/session";
 
@@ -130,7 +131,7 @@ export default function Account() {
       message={
         sent
           ? `Enter the code sent to ${phone}.`
-          : "Sign in or join with the same phone number you use in the STREET app."
+          : "Choose how to sign in or join STREET."
       }
     >
       <div className="account-content">
@@ -199,6 +200,20 @@ export default function Account() {
                 : "Send me a code"}
           </button>
         </form>
+        {!sent && (
+          <GoogleSignIn
+            disabled={busy}
+            onBusy={(value) => {
+              pending.current = value;
+              setBusy(value);
+            }}
+            onSuccess={(customer) => {
+              setUser(customer);
+              setError("");
+              setCode("");
+            }}
+          />
+        )}
         {sent && (
           <button
             className="text-link"

@@ -14,6 +14,7 @@
     "build": "npm test && next build"
   },
   "dependencies": {
+    "jose": "^6.2.14",
     "next": "16.4.3",
     "react": "19.2.9",
     "react-dom": "19.2.9",

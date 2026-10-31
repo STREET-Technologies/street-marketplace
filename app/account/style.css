@@ -27,6 +27,36 @@
 .account-error {
   font-weight: 600;
 }
+.google-sign-in {
+  margin-block: 24px;
+}
+.google-sign-in-button {
+  min-height: 40px;
+  width: 100%;
+}
+.google-sign-in-button[inert] {
+  opacity: 0.6;
+}
+.google-sign-in > [role="alert"] {
+  margin-top: 12px;
+}
+.google-sign-in .text-link {
+  min-height: 44px;
+}
+.sign-in-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.sign-in-divider::before,
+.sign-in-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
 .profile-content {
   max-width: 920px;
 }

@@ -36,7 +36,7 @@ export async function sessionRequest(
     throw new SessionError(response.status, data.error ?? "Please try again.");
   if (
     typeof window !== "undefined" &&
-    ["verify-otp", "logout"].includes(action)
+    ["verify-otp", "google", "logout"].includes(action)
   )
     window.dispatchEvent(new Event("street:session-changed"));
   return data;

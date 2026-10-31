@@ -242,6 +242,12 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
     async requestOtp(phone: string) {
       await request("/auth/request-otp", "POST", { phone });
     },
+    async googleLogin(idToken: string) {
+      const data = record(
+        await request("/auth/google/token", "POST", { idToken }),
+      );
+      return { tokens: tokensFrom(data), user: customerFrom(data.user) };
+    },
     async verifyOtp(phone: string, code: string) {
       const data = record(
         await request("/auth/verify-otp", "POST", { phone, code }),

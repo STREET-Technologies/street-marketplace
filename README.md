@@ -117,3 +117,14 @@ Neighbourhood editorial MVP (2026-10-31): Marylebone, Notting Hill and Soho are 
 ### Device location postcode
 
 Set server-only `MAPBOX_ACCESS_TOKEN` locally and in Vercel to enable the postcode label for “Use my current location”. Reuses STREET's Mapbox integration; `/api/location/postcode` validates same-origin coordinates and returns only a UK postcode. The lookup is temporary, not persisted. Missing postcode/token or provider failure keeps “Current location”; discovery continues using the original coordinates. Saved addresses retain their own postcode.
+
+
+### Google sign-in alongside OTP (TT-531)
+
+On `feat/tt-531-web-social-sign-in`, Google uses the official Google Identity Services popup button and the existing staging `/auth/google/token` endpoint. The web server verifies the signed ID token and browser nonce before issuing the same STREET session as OTP. Apple remains deferred. There is no separate web account store and no backend change.
+
+Set server-only `GOOGLE_CLIENT_ID` to the existing staging Google **Web application** client ID already accepted by the backend. This is a public client identifier, not a client secret. It is configured in the ignored local environment; Vercel still needs it on the target environment. In Google Cloud, authorize the exact JavaScript origins used for testing, including `http://localhost:4319` and the chosen stable HTTPS Vercel origin (no path). Do not assume arbitrary preview hosts are authorized. The popup credential flow needs no client secret or redirect callback route.
+
+Without this setting the Google option is hidden and OTP remains available. SDK/popup failures do not sign the user in; retry starts a fresh challenge. Existing customers should choose the same method used in the app. Backend phone/email matching does not guarantee account merging across different methods; shared identity work remains TT-532. Apple security remediation remains TT-505.
+
+Local acceptance passed with the user’s existing Google mobile account: profile, wishlist and addresses match, and sign-out/sign-in succeeds. Repeat these checks on Vercel staging. Check cancellation and blocked-popup recovery, then confirm OTP still works. Automated tests use generated signed tokens and fixtures, never customer credentials. See `docs/web-social-sign-in-provider-research.md` for token validation and challenge limitations.

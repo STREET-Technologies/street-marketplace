@@ -21,6 +21,9 @@ const tokens = {
 };
 function api(overrides: Partial<StreetApi> = {}): StreetApi {
   return {
+    async googleLogin() {
+      throw new Error("Not used in auth tests");
+    },
     async updateProfile() {
       throw new Error("Not used in auth tests");
     },
