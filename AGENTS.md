@@ -14,3 +14,11 @@ Follow the standing cross-platform design rule in `../AGENTS.md`. For Profile,
 Favourites and Bag, reuse `components/customer-page.tsx` and the shared navigation
 icons. The mobile reference is `street-client-app`'s `EmptyStatePrompt` and
 `GuestSignInPrompt`; check their current copy before introducing new empty states.
+
+## Shared commerce contracts
+
+Web checkout must preserve the mobile app's backend order contracts. Public
+order references come from the existing backend ST-00xxxx sequence, never a
+web-specific format. Checkout-attempt UUIDs are internal identifiers only.
+Pass the canonical STREET order reference to Shopify and reuse the existing
+payment, retailer acceptance and delivery lifecycle.

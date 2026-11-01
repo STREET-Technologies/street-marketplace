@@ -21,6 +21,8 @@ const tokens = {
 };
 function api(overrides: Partial<StreetApi> = {}): StreetApi {
   return {
+    async checkoutStart() { throw new Error("Not used in auth tests"); },
+    async checkoutStatus() { throw new Error("Not used in auth tests"); },
     async deliveryFee() {
       throw new Error("Not used in auth tests");
     },

@@ -1,3 +1,4 @@
+import { checkoutEnabled } from "../lib/server/checkout-api";
 import { CartProvider } from "../components/cart";
 import { CustomerProvider } from "../components/customer-context";
 import { Suspense } from "react";
@@ -27,7 +28,9 @@ export default function RootLayout({
               Skip to content
             </a>
             <div className="proof-strip">
-              Staging · Real test catalogue · Purchasing disabled
+              {checkoutEnabled()
+                ? "Staging · Gymshark test checkout enabled"
+                : "Staging · Real test catalogue · Purchasing disabled"}
             </div>
             <Suspense
               fallback={

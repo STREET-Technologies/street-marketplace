@@ -1,3 +1,5 @@
+import { CheckoutConflict, CheckoutNotStarted } from "../checkout.ts";
+import { UUID_PATTERN } from "./api-values.ts";
 import { addressesFrom } from "./customer-data.ts";
 import type { ProfileChanges, AddressFields } from "../profile.ts";
 import type {
@@ -177,6 +179,13 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
       );
     }
     if (!response.ok) {
+      if (path === "/checkout-attempts" && [400,409].includes(response.status)) {
+        const conflict = await response.json().catch(() => null);
+        if (response.status === 400 && conflict?.code === "CHECKOUT_NOT_STARTED") throw new CheckoutNotStarted();
+        if (response.status === 409 && typeof conflict?.attemptId === "string" && UUID_PATTERN.test(conflict.attemptId))
+          throw new CheckoutConflict(conflict.attemptId);
+        throw new ApiError(response.status, "This checkout could not be started. Resume your existing checkout or contact STREET.");
+      }
       const messages: Record<number, string> = {
         400: "Please check your details and try again.",
         401: "Your session or verification code is no longer valid.",
@@ -239,6 +248,8 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
     return { outlet: null, delivery: { status: "unknown", isOpen: null } };
   }
   return {
+    checkoutStart: (token: string, body: import("../contracts.ts").CartIntent & { attemptKey: string }) => request("/checkout-attempts", "POST", body, token),
+    checkoutStatus: (token: string, id: string) => request(`/checkout-attempts/${encodeURIComponent(id)}`, "GET", undefined, token),
     async requestOtp(phone: string) {
       await request("/auth/request-otp", "POST", { phone });
     },

@@ -1,4 +1,6 @@
 "use client";
+import Checkout from "./checkout";
+import { sameSubmittedBag, type SavedCheckout } from "../lib/checkout";
 import { variantOptionLabels } from "../lib/product-options";
 import NavigationIcon from "./navigation-icon";
 import { productOptionPrompt } from "../lib/product-presentation";
@@ -37,6 +39,7 @@ type CartContextValue = {
   ) => boolean;
   quantity: (line: CartLine, quantity: number) => void;
   remove: (line: CartLine) => void;
+  completeCheckout: (saved: SavedCheckout) => void;
 };
 const CartContext = createContext<CartContextValue | null>(null);
 function useCart() {
@@ -152,6 +155,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         add,
         quantity,
         remove,
+        completeCheckout: (saved) => {
+          if (saved.owner !== owner || !sameSubmittedBag(current.current.cart, saved)) return;
+          // Another tab may have edited the bag while checkout was open.
+          try {
+            const disk = restoreCart(localStorage.getItem(cartStorageKey(owner!)));
+            if (!sameSubmittedBag(disk, saved)) return;
+          } catch { return; }
+          commit(null);
+        },
       }}
     >
       {children}
@@ -296,9 +308,9 @@ export function AddToBag({
     </div>
   );
 }
-export default function Bag() {
+export default function Bag({ checkoutEnabled = false }: { checkoutEnabled?: boolean }) {
   const { state, selected } = useCustomer();
-  const { cart, ready, notice, quantity, remove } = useCart();
+  const { cart, ready, notice, quantity, remove, completeCheckout } = useCart();
   const [revision, recheck] = useState(0);
   const [review, setReview] = useState<{
     key: string;
@@ -342,6 +354,8 @@ export default function Bag() {
   }, [fingerprint, payload, userId, ready, revision]);
   const result = payload && review.key === fingerprint ? review : undefined;
   const data = result?.data;
+  const checkout = <Checkout owner={userId} cart={cart} addressId={selected?.id} enabled={checkoutEnabled} complete={completeCheckout}
+    eligible={!!data && data.total !== null && data.delivery.status === "available" && data.delivery.isOpen === true && data.lines.every(line => line.issue === null)} />;
   if (state.status === "guest")
     return (
       <CustomerSignIn
@@ -369,6 +383,7 @@ export default function Bag() {
         <Link className="primary" href="/?view=shops">
           Start Shopping
         </Link>
+        {checkoutEnabled && checkout}
       </CustomerEmptyState>
     );
   const count = cart.lines.reduce((total, line) => total + line.quantity, 0);
@@ -599,9 +614,7 @@ export default function Bag() {
               </>
             )}
           </div>
-          <button className="primary wide" disabled>
-            Checkout coming later
-          </button>
+          {checkout}
           {(result?.error || data?.delivery.status === "unknown" ||
             (data?.delivery.status === "available" && (data.deliveryFee === null || data.lines.some((line) => line.issue === "unknown")))) && (
             <button className="text-link cart-recheck" onClick={() => recheck((v) => v + 1)}>
