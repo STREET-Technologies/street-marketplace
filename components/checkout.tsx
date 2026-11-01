@@ -240,18 +240,23 @@ export default function Checkout({
     });
   }
   const active = saved?.owner === owner ? saved : null;
+  const status = result?.userId === owner && result.id === active?.id
+    ? result.status
+    : undefined;
+  const restoring = !!active?.id && !status && !error;
   const visibility = checkoutVisibility(cart, !!active);
   const addressIssue = active ? checkoutAddressIssue(active, addressId) : null;
   // An empty bag only needs controls when a previously submitted checkout exists.
   // Keep storage errors visible so an unreadable attempt is not silently hidden.
   if (visibility === "hidden" && !error) return null;
+  if (!cart?.lines.length && (restoring || status === "completed") && !error)
+    return null;
   if (!enabled)
     return (
       <button className="primary wide" disabled>
         Checkout coming later
       </button>
     );
-  const status = result?.userId === owner ? result.status : undefined;
   const terminal =
     active?.notStarted ||
     (status && ["completed", "failed", "cancelled"].includes(status));
@@ -304,20 +309,21 @@ export default function Checkout({
             className="primary wide"
             disabled={
               !loaded ||
+              restoring ||
               busy ||
               !!addressIssue ||
               (!active && (!eligible || visibility !== "start"))
             }
             onClick={startOrResume}
           >
-            {busy
+            {busy || restoring
               ? "Checking checkout…"
               : active
                 ? "Resume checkout"
                 : "Checkout"}
           </button>
-          {addressIssue && <p role="status">{addressIssue}</p>}
-          {active?.id && (
+          {!restoring && addressIssue && <p role="status">{addressIssue}</p>}
+          {!restoring && active?.id && (
             <button
               className="text-link cart-recheck"
               disabled={busy}
@@ -326,7 +332,7 @@ export default function Checkout({
               Check order status
             </button>
           )}
-          {active && (
+          {!restoring && active && (
             <p>
               Resuming uses the items and delivery address submitted with this
               checkout. Your current bag is kept until the order is confirmed.
