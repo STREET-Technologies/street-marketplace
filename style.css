@@ -3059,3 +3059,89 @@ a.area-card,
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* Desktop sidebar exploration: one category navigation, responsive presentation. */
+.browse-results {
+  min-width: 0;
+}
+.category-heading,
+.category-selected {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .browse-layout {
+    display: grid;
+    grid-template-columns: 208px minmax(0, 1fr);
+    align-items: start;
+    gap: 40px;
+    margin-top: 36px;
+  }
+  .browse-layout > .category-strip {
+    display: block;
+    position: sticky;
+    top: 188px;
+    min-width: 0;
+    margin: 0;
+  }
+  .browse-layout .category-heading {
+    display: block;
+    margin: 0 0 20px;
+    font-family: var(--font);
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .browse-layout .catalogue-categories {
+    flex-direction: column;
+    gap: 4px;
+    max-height: calc(100dvh - 260px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+    padding: 2px;
+  }
+  .browse-layout .catalogue-categories a {
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border: 0;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  .browse-layout .catalogue-categories a[aria-current="true"] {
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .browse-layout .category-selected {
+    display: block;
+    flex-shrink: 0;
+    visibility: hidden;
+  }
+  .browse-layout a[aria-current="true"] .category-selected {
+    visibility: visible;
+  }
+  .browse-layout .category-scroll {
+    display: none;
+  }
+  .browse-results > .results-bar {
+    min-height: 24px;
+    margin: 0 0 20px;
+  }
+  .live-marketplace .browse-layout .product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .browse-layout .shop-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1440px) {
+  .browse-layout {
+    gap: 48px;
+  }
+  .live-marketplace .browse-layout .product-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .browse-layout .shop-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

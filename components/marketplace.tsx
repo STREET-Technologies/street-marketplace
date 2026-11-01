@@ -191,10 +191,12 @@ function Shops({
   );
   if (!state.data)
     return (
-      <>
+      <div className={preview ? undefined : "browse-layout"}>
         {filters}
-        <LoadMessage {...state} />
-      </>
+        <div className="browse-results">
+          <LoadMessage {...state} />
+        </div>
+      </div>
     );
   const outlets = params.vendorId
     ? state.data.outlets.filter(
@@ -204,155 +206,157 @@ function Shops({
       )
     : state.data.outlets;
   return (
-    <>
+    <div className={preview ? undefined : "browse-layout"}>
       {filters}
-      {!preview && (
-        <div className="results-bar">
-          <span>
-            {state.data.total} shops
-            {selected || coordinates ? " · Nearest first" : ""}
-          </span>
-        </div>
-      )}
-      {params.vendorId && (
-        <p className="catalogue-message">
-          Choose a listed shop location to check its catalogue and stock. Saved
-          products do not specify a branch.
-        </p>
-      )}
-      <div className="shop-list">
-        {(preview ? outlets.slice(0, 3) : outlets).map((outlet) => {
-          const destination = outletParams(outlet);
-          if (params.productId) {
-            destination.view = "product";
-            destination.productId = params.productId;
-          }
-          return (
-            <article
-              className="shop-card"
-              key={outlet.vendorId + outlet.outletId}
-            >
-              {outlet.locationGid && outlet.outletId ? (
-                <Link
-                  className="shop-image-link"
-                  href={href(destination)}
-                  aria-label={`Explore ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""}`}
-                >
-                  <Photo src={outlet.image} />
-                </Link>
-              ) : (
-                <Photo src={outlet.image} />
-              )}
-              <div>
-                <div className="shop-heading">
-                  <div className="shop-name-row">
-                    <h3>
-                      {outlet.locationGid && outlet.outletId ? (
-                        <Link
-                          className="shop-name-link"
-                          href={href(destination)}
-                        >
-                          {outlet.name}
-                        </Link>
-                      ) : (
-                        outlet.name
-                      )}
-                    </h3>
-                    {outlet.outletId && (
-                      <FavouriteButton
-                        appearance="icon"
-                        name={outlet.name}
-                        target={{
-                          kind: "shop",
-                          vendorId: outlet.vendorId,
-                          outletId: outlet.outletId,
-                        }}
-                      />
-                    )}
-                  </div>
-                  <ShopLogo src={outlet.logo} />
-                </div>
-                <p>
-                  {[
-                    outlet.outletName,
-                    outlet.category,
-                    !outlet.isOnline ? "Currently offline" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                <div className="shop-address">
-                  {outlet.address || outlet.postcode ? (
-                    <a
-                      href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: [outlet.name, outlet.address, outlet.postcode].filter(Boolean).join(", ") })}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`View ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""} on Google Maps (opens in a new tab)`}
-                    >
-                      {[outlet.address, outlet.postcode]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </a>
-                  ) : (
-                    <span>Address unavailable</span>
-                  )}
-                  {outlet.distanceMiles !== null && (
-                    <span className="shop-distance">
-                      {outlet.distanceMiles.toFixed(1)} miles
-                    </span>
-                  )}
-                </div>
-
+      <div className="browse-results">
+        {!preview && (
+          <div className="results-bar">
+            <span>
+              {state.data.total} shops
+              {selected || coordinates ? " · Nearest first" : ""}
+            </span>
+          </div>
+        )}
+        {params.vendorId && (
+          <p className="catalogue-message">
+            Choose a listed shop location to check its catalogue and stock.
+            Saved products do not specify a branch.
+          </p>
+        )}
+        <div className="shop-list">
+          {(preview ? outlets.slice(0, 3) : outlets).map((outlet) => {
+            const destination = outletParams(outlet);
+            if (params.productId) {
+              destination.view = "product";
+              destination.productId = params.productId;
+            }
+            return (
+              <article
+                className="shop-card"
+                key={outlet.vendorId + outlet.outletId}
+              >
                 {outlet.locationGid && outlet.outletId ? (
-                  <Link className="text-link" href={href(destination)}>
-                    Explore the shop →
+                  <Link
+                    className="shop-image-link"
+                    href={href(destination)}
+                    aria-label={`Explore ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""}`}
+                  >
+                    <Photo src={outlet.image} />
                   </Link>
                 ) : (
-                  <p>Products are not available for this location yet.</p>
+                  <Photo src={outlet.image} />
                 )}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      {!outlets.length && (
-        <CustomerEmptyState
-          icon="store"
-          title="No shops found"
-          message={
-            params.vendorId
-              ? "This saved shop location isn’t listed here. Browse the available shops to keep exploring."
-              : params.category
-                ? "No shops in this category were found for this location."
-                : "Try another location from the location menu above, or explore a neighbourhood."
-          }
-        >
-          <Link
-            className="primary"
-            href={href(
-              params.category || page > 1
-                ? clearFilters(params)
-                : { view: params.vendorId ? "shops" : "neighbourhoods" },
-            )}
+                <div>
+                  <div className="shop-heading">
+                    <div className="shop-name-row">
+                      <h3>
+                        {outlet.locationGid && outlet.outletId ? (
+                          <Link
+                            className="shop-name-link"
+                            href={href(destination)}
+                          >
+                            {outlet.name}
+                          </Link>
+                        ) : (
+                          outlet.name
+                        )}
+                      </h3>
+                      {outlet.outletId && (
+                        <FavouriteButton
+                          appearance="icon"
+                          name={outlet.name}
+                          target={{
+                            kind: "shop",
+                            vendorId: outlet.vendorId,
+                            outletId: outlet.outletId,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <ShopLogo src={outlet.logo} />
+                  </div>
+                  <p>
+                    {[
+                      outlet.outletName,
+                      outlet.category,
+                      !outlet.isOnline ? "Currently offline" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  <div className="shop-address">
+                    {outlet.address || outlet.postcode ? (
+                      <a
+                        href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: [outlet.name, outlet.address, outlet.postcode].filter(Boolean).join(", ") })}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`View ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""} on Google Maps (opens in a new tab)`}
+                      >
+                        {[outlet.address, outlet.postcode]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </a>
+                    ) : (
+                      <span>Address unavailable</span>
+                    )}
+                    {outlet.distanceMiles !== null && (
+                      <span className="shop-distance">
+                        {outlet.distanceMiles.toFixed(1)} miles
+                      </span>
+                    )}
+                  </div>
+
+                  {outlet.locationGid && outlet.outletId ? (
+                    <Link className="text-link" href={href(destination)}>
+                      Explore the shop →
+                    </Link>
+                  ) : (
+                    <p>Products are not available for this location yet.</p>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {!outlets.length && (
+          <CustomerEmptyState
+            icon="store"
+            title="No shops found"
+            message={
+              params.vendorId
+                ? "This saved shop location isn’t listed here. Browse the available shops to keep exploring."
+                : params.category
+                  ? "No shops in this category were found for this location."
+                  : "Try another location from the location menu above, or explore a neighbourhood."
+            }
           >
-            {params.category
-              ? "Clear filters"
-              : page > 1
-                ? "Back to first page"
-                : params.vendorId
-                  ? "Browse shops"
-                  : "Explore neighbourhoods"}
-          </Link>
-        </CustomerEmptyState>
-      )}
-      {!preview && (
-        <Pagination
-          page={page}
-          totalPages={state.data.totalPages}
-          params={params}
-        />
-      )}
-    </>
+            <Link
+              className="primary"
+              href={href(
+                params.category || page > 1
+                  ? clearFilters(params)
+                  : { view: params.vendorId ? "shops" : "neighbourhoods" },
+              )}
+            >
+              {params.category
+                ? "Clear filters"
+                : page > 1
+                  ? "Back to first page"
+                  : params.vendorId
+                    ? "Browse shops"
+                    : "Explore neighbourhoods"}
+            </Link>
+          </CustomerEmptyState>
+        )}
+        {!preview && (
+          <Pagination
+            page={page}
+            totalPages={state.data.totalPages}
+            params={params}
+          />
+        )}
+      </div>
+    </div>
   );
 }
 function ProductGrid({
@@ -488,6 +492,7 @@ function CategoryFilter({
     const element = row.current,
       active = element?.querySelector<HTMLElement>('[aria-current="true"]');
     if (!element || !active) return;
+    if (getComputedStyle(element).flexDirection === "column") return;
     if (
       active.offsetLeft < element.scrollLeft ||
       active.offsetLeft + active.offsetWidth >
@@ -507,12 +512,19 @@ function CategoryFilter({
     });
   return (
     <div className="category-strip" data-overflow={edges.overflow}>
+      <h2 className="category-heading">Categories</h2>
       <nav
         ref={row}
         className="catalogue-categories"
-        aria-label="Shop categories"
+        aria-label={
+          filterKey === "category" ? "Shop categories" : "Product categories"
+        }
         onKeyDown={(event) => {
-          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+          const vertical =
+            getComputedStyle(event.currentTarget).flexDirection === "column";
+          const previousKey = vertical ? "ArrowUp" : "ArrowLeft";
+          const nextKey = vertical ? "ArrowDown" : "ArrowRight";
+          if (![previousKey, nextKey, "Home", "End"].includes(event.key))
             return;
           const links = Array.from(event.currentTarget.querySelectorAll("a"));
           const index = links.indexOf(event.target as HTMLAnchorElement);
@@ -527,12 +539,21 @@ function CategoryFilter({
                     0,
                     Math.min(
                       links.length - 1,
-                      index + (event.key === "ArrowRight" ? 1 : -1),
+                      index + (event.key === nextKey ? 1 : -1),
                     ),
                   );
           links[next]?.focus({ preventScroll: true });
           const link = links[next];
-          if (link)
+          if (link && vertical) {
+            const nav = event.currentTarget;
+            if (link.offsetTop < nav.scrollTop) nav.scrollTop = link.offsetTop;
+            else if (
+              link.offsetTop + link.offsetHeight >
+              nav.scrollTop + nav.clientHeight
+            )
+              nav.scrollTop =
+                link.offsetTop + link.offsetHeight - nav.clientHeight;
+          } else if (link)
             event.currentTarget.scrollTo({
               left:
                 link.offsetLeft -
@@ -559,7 +580,19 @@ function CategoryFilter({
                   : undefined
               }
             >
-              {category.label}
+              <span>{category.label}</span>
+              <svg
+                className="category-selected"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <path d="m9 5 7 7-7 7" />
+              </svg>
             </Link>
           );
         })}
@@ -667,74 +700,80 @@ function Products({
                 .join(" · ")}
         </p>
       </div>
-      {!search && facets && (
-        <CategoryFilter
-          categories={facets.map((f) => f.productType)}
-          params={params}
-        />
-      )}
-      {!state.data ? (
-        <LoadMessage {...state} />
-      ) : state.data.requiresLocation ? (
-        <CustomerEmptyState
-          icon="location"
-          title="Find products near you"
-          message="Choose a saved address or use your current location from the location menu above."
-        >
-          <Link className="primary" href={href({ view: "shops" })}>
-            Browse shops
-          </Link>
-        </CustomerEmptyState>
-      ) : state.data.outOfDeliveryArea ? (
-        <CustomerEmptyState
-          icon="store"
-          title="No shops nearby"
-          message="Try another location from the location menu above, or explore a neighbourhood."
-        >
-          <Link className="primary" href={href({ view: "neighbourhoods" })}>
-            Explore neighbourhoods
-          </Link>
-        </CustomerEmptyState>
-      ) : (
-        <>
-          <div className="results-bar">
-            <span>{state.data.total} products</span>
-          </div>
-          <ProductGrid products={state.data.products} context={params} />
-          {!state.data.products.length && (
-            <CustomerEmptyState
-              icon="search"
-              title="No products found"
-              message={
-                !search && (params.query || params.productType)
-                  ? "Try clearing your filters to see more products."
-                  : "Try another search or shop to find something you love."
-              }
-            >
-              <Link
-                className="primary"
-                href={href(
-                  !search &&
-                    (params.query || params.productType || state.data.page > 1)
-                    ? clearFilters(params)
-                    : { view: "shops" },
-                )}
-              >
-                {!search && (params.query || params.productType)
-                  ? "Clear filters"
-                  : !search && state.data.page > 1
-                    ? "Back to first page"
-                    : "Browse shops"}
-              </Link>
-            </CustomerEmptyState>
-          )}
-          <Pagination
-            page={state.data.page}
-            totalPages={state.data.totalPages}
+      <div className={search ? undefined : "browse-layout"}>
+        {!search && (
+          <CategoryFilter
+            categories={(facets ?? []).map((f) => f.productType)}
             params={params}
           />
-        </>
-      )}
+        )}
+        <div className="browse-results">
+          {!state.data ? (
+            <LoadMessage {...state} />
+          ) : state.data.requiresLocation ? (
+            <CustomerEmptyState
+              icon="location"
+              title="Find products near you"
+              message="Choose a saved address or use your current location from the location menu above."
+            >
+              <Link className="primary" href={href({ view: "shops" })}>
+                Browse shops
+              </Link>
+            </CustomerEmptyState>
+          ) : state.data.outOfDeliveryArea ? (
+            <CustomerEmptyState
+              icon="store"
+              title="No shops nearby"
+              message="Try another location from the location menu above, or explore a neighbourhood."
+            >
+              <Link className="primary" href={href({ view: "neighbourhoods" })}>
+                Explore neighbourhoods
+              </Link>
+            </CustomerEmptyState>
+          ) : (
+            <>
+              <div className="results-bar">
+                <span>{state.data.total} products</span>
+              </div>
+              <ProductGrid products={state.data.products} context={params} />
+              {!state.data.products.length && (
+                <CustomerEmptyState
+                  icon="search"
+                  title="No products found"
+                  message={
+                    !search && (params.query || params.productType)
+                      ? "Try clearing your filters to see more products."
+                      : "Try another search or shop to find something you love."
+                  }
+                >
+                  <Link
+                    className="primary"
+                    href={href(
+                      !search &&
+                        (params.query ||
+                          params.productType ||
+                          state.data.page > 1)
+                        ? clearFilters(params)
+                        : { view: "shops" },
+                    )}
+                  >
+                    {!search && (params.query || params.productType)
+                      ? "Clear filters"
+                      : !search && state.data.page > 1
+                        ? "Back to first page"
+                        : "Browse shops"}
+                  </Link>
+                </CustomerEmptyState>
+              )}
+              <Pagination
+                page={state.data.page}
+                totalPages={state.data.totalPages}
+                params={params}
+              />
+            </>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -1350,7 +1389,9 @@ export default function Marketplace() {
         )}
         {view === "shops" && (
           <section className="catalogue">
-            <h1 className="sr-only">Shop all</h1>
+            <div className="catalogue-intro">
+              <h1>Shop all</h1>
+            </div>
             <Shops params={params} />
           </section>
         )}
