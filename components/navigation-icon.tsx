@@ -2,7 +2,7 @@ export default function NavigationIcon({
   name,
   filled = false,
 }: {
-  name: "profile" | "heart" | "bag" | "location" | "search" | "store";
+  name: "profile" | "heart" | "bag" | "location" | "search" | "store" | "history" | "refresh";
   filled?: boolean;
 }) {
   return (
@@ -17,6 +17,8 @@ export default function NavigationIcon({
       strokeLinejoin="round"
       aria-hidden="true"
     >
+      {name === "refresh" && <><path d="M20 4v5h-5" /><path d="m20 9-2.3-2.3a8 8 0 1 0 2.1 7.3" /></>}
+      {name === "history" && <><path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7" /><path d="M12 7v5l3 2" /></>}
       {name === "profile" && (
         <>
           <circle cx="12" cy="7" r="3.5" fill={filled ? "currentColor" : "none"} />

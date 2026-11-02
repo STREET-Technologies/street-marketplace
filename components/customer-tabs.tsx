@@ -1,21 +1,32 @@
 "use client";
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 export default function CustomerTabs({
   label,
   tabs,
   value,
   onChange,
+  sidebar = false,
 }: {
+  sidebar?: boolean;
   label: string;
   tabs: { key: string; label: string; content: ReactNode }[];
   value: string;
   onChange: (key: string) => void;
 }) {
   const id = useId();
+  const [vertical, setVertical] = useState(false);
+  useEffect(() => {
+    if (!sidebar) return;
+    const media = window.matchMedia("(min-width: 1100px)");
+    const update = () => setVertical(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [sidebar]);
   return (
-    <>
-      <div className="customer-tabs" role="tablist" aria-label={label}>
+    <div className={sidebar ? "browse-layout customer-tab-layout" : undefined}>
+      <div className="customer-tabs" role="tablist" aria-label={label} aria-orientation={vertical ? "vertical" : "horizontal"}>
         {tabs.map((tab, index) => (
           <button
             key={tab.key}
@@ -28,9 +39,9 @@ export default function CustomerTabs({
             onClick={() => onChange(tab.key)}
             onKeyDown={(event) => {
               const next =
-                event.key === "ArrowRight"
+                event.key === (vertical ? "ArrowDown" : "ArrowRight")
                   ? (index + 1) % tabs.length
-                  : event.key === "ArrowLeft"
+                  : event.key === (vertical ? "ArrowUp" : "ArrowLeft")
                     ? (index - 1 + tabs.length) % tabs.length
                     : event.key === "Home"
                       ? 0
@@ -59,6 +70,6 @@ export default function CustomerTabs({
           {tab.content}
         </div>
       ))}
-    </>
+    </div>
   );
 }

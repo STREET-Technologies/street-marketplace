@@ -1,3 +1,4 @@
+import { orderPageFrom, orderDetailFrom } from "./orders.ts";
 import { CheckoutConflict, CheckoutNotStarted } from "../checkout.ts";
 import { UUID_PATTERN } from "./api-values.ts";
 import { addressesFrom } from "./customer-data.ts";
@@ -248,6 +249,10 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
     return { outlet: null, delivery: { status: "unknown", isOpen: null } };
   }
   return {
+    firebaseToken: (token: string) => request("/auth/firebase-token", "POST", {}, token),
+    orders: (token: string, group: import("../orders.ts").OrderGroup, page: number) => orderPageFrom(
+      (page, limit) => request(`/orders/my?page=${page}&limit=${limit}`, "GET", undefined, token), group, page),
+    orderDetail: async (token: string, reference: string) => orderDetailFrom(await request(`/orders/${encodeURIComponent(reference)}`, "GET", undefined, token)),
     checkoutStart: (token: string, body: import("../contracts.ts").CartIntent & { attemptKey: string }) => request("/checkout-attempts", "POST", body, token),
     checkoutStatus: (token: string, id: string) => request(`/checkout-attempts/${encodeURIComponent(id)}`, "GET", undefined, token),
     async requestOtp(phone: string) {

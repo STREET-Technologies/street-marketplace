@@ -70,6 +70,7 @@ export async function currentCustomer(): Promise<Customer | null> {
 
 export function readAccountData<T>(
   path:
+    | "/api/orders"
     | "/api/favourites"
     | "/api/customer-context"
     | "/api/delivery-check"
@@ -94,6 +95,7 @@ export function readAccountData<T>(
 
 export function postAccountData<T>(
   path:
+    | "/api/tracking/session"
     | "/api/favourites/change"
     | "/api/cart/check"
     | "/api/profile"

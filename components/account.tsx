@@ -5,6 +5,7 @@ import { CustomerEmptyState } from "./customer-page";
 import CustomerTabs from "./customer-tabs";
 import ProfileDetails from "./profile-details";
 import ProfileAddresses from "./profile-addresses";
+import ProfileOrders from "./profile-orders";
 import GoogleSignIn from "./google-sign-in";
 import type { Customer } from "../lib/contracts";
 import { currentCustomer, sessionRequest } from "../lib/client/session";
@@ -73,6 +74,7 @@ export default function Account() {
     return (
       <div className="profile-content">
         <CustomerTabs
+          sidebar
           label="Profile options"
           value={tab}
           onChange={setTab}
@@ -87,15 +89,19 @@ export default function Account() {
               label: "My addresses",
               content: <ProfileAddresses />,
             },
+            {
+              key: "orders",
+              label: "My orders",
+              content: tab === "orders" ? <ProfileOrders key={user.id} userId={user.id} /> : null,
+            },
           ]}
         />
         <aside className="profile-app">
           <h2>Continue in the STREET app</h2>
           <p>
-            Track orders, manage returns and view your credit balance in the
+            Manage returns and view your credit balance in the
             app. You can also manage notifications and account deletion there.
           </p>
-          <p>Sign in with the same account you use here.</p>
         </aside>
         <div className="profile-actions profile-account-actions">
           <a className="text-link" href="https://street.london/support">

@@ -59,7 +59,6 @@ export default function ProfileDetails({
   return (
     <section className="profile-section account-content">
       <h2>Personal details</h2>
-      <p>The same account, on the website and in the STREET app.</p>
       <form
         onSubmit={async (event) => {
           event.preventDefault();

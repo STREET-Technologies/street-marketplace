@@ -1,6 +1,6 @@
 {
   "name": "street-marketplace",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,7 +14,9 @@
     "build": "npm test && next build"
   },
   "dependencies": {
+    "firebase": "^13.1.0",
     "jose": "^6.2.14",
+    "mapbox-gl": "^3.34.1",
     "next": "16.4.3",
     "react": "19.2.9",
     "react-dom": "19.2.9",
@@ -25,5 +27,8 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.13.6"
   }
 }

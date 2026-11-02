@@ -21,6 +21,9 @@ const tokens = {
 };
 function api(overrides: Partial<StreetApi> = {}): StreetApi {
   return {
+    async firebaseToken() { throw new Error("Not used in auth tests"); },
+    async orders() { throw new Error("Not used in auth tests"); },
+    async orderDetail() { throw new Error("Not used in auth tests"); },
     async checkoutStart() { throw new Error("Not used in auth tests"); },
     async checkoutStatus() { throw new Error("Not used in auth tests"); },
     async deliveryFee() {
