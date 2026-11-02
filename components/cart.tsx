@@ -203,6 +203,18 @@ export function AddToBag({
   const { cart, ready, add } = useCart();
   const [message, setMessage] = useState(""),
     [confirm, setConfirm] = useState(false);
+  const [addedSelection, setAddedSelection] = useState<string | null>(null);
+  const selectionKey = JSON.stringify([
+    state.status === "ready" ? state.data?.userId : null,
+    outlet.vendorId, outlet.outletId, product.id, variant?.id,
+  ]);
+  const isAdded = addedSelection === selectionKey &&
+    cart?.vendorId === outlet.vendorId && cart?.outletId === outlet.outletId &&
+    cart.lines.some(line => line.productId === product.id && line.variantId === variant?.id);
+  useEffect(() => {
+    setMessage("");
+    setConfirm(false);
+  }, [selectionKey]);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (confirm && state.status === "ready") dialog.current?.showModal();
@@ -238,9 +250,8 @@ export function AddToBag({
         return;
       }
       setConfirm(false);
-      setMessage(
-        "Added to your bag. Review it to check current stock and prices.",
-      );
+      setMessage("");
+      setAddedSelection(selectionKey);
     } catch (error) {
       setConfirm(false);
       setMessage(
@@ -256,6 +267,11 @@ export function AddToBag({
     );
   return (
     <div className="add-to-bag">
+      {isAdded ? (
+        <Link className="primary wide" href="/bag">
+          View Bag and Checkout
+        </Link>
+      ) : (
       <button
         className="primary wide"
         disabled={!ready || unavailable || !outlet.outletId}
@@ -271,12 +287,10 @@ export function AddToBag({
             ? "Currently unavailable"
             : "Add to bag"}
       </button>
+      )}
       {message && (
         <p role="status">
-          {message}{" "}
-          <Link className="text-link" href="/bag">
-            View bag →
-          </Link>
+          {message}
         </p>
       )}
       <dialog

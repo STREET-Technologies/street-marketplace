@@ -1947,6 +1947,35 @@ input {
 }
 .stock-status {
   margin: 22px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.detail-copy > p.stock-status[data-stock] {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.detail-copy > p.stock-status[data-stock="in"] {
+  color: #21833b;
+}
+.detail-copy > p.stock-status[data-stock="out"] {
+  color: #c62828;
+}
+.detail-copy > p.stock-status[data-stock="low"] {
+  color: var(--ink);
+}
+.stock-status svg {
+  flex-shrink: 0;
+}
+.stock-status-mark {
+  stroke: white;
+}
+.stock-status[data-stock="low"] svg {
+  color: var(--lime);
+}
+.stock-status[data-stock="low"] .stock-status-mark {
+  stroke: var(--ink);
 }
 button:disabled {
   cursor: not-allowed;

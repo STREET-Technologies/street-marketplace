@@ -1,20 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  stockLabel,
+  stockStatus,
   productOptionPrompt,
   productPriceSummary,
 } from "../lib/product-presentation.ts";
 test("stock labels distinguish unknown, unavailable, low and normal inventory at boundaries", () => {
-  for (const [inventory, expected] of [
-    [null, "Availability unavailable"],
-    [0, "Out of Stock"],
-    [1, "Low Stock (1)"],
-    [2, "Low Stock (2)"],
-    [3, "In Stock (3)"],
-    [6, "In Stock (6)"],
+  for (const [inventory, kind, label] of [
+    [null, "unknown", "Availability unavailable"],
+    [-1, "out", "Out of Stock"],
+    [0, "out", "Out of Stock"],
+    [1, "low", "Low Stock (1 available)"],
+    [2, "low", "Low Stock (2 available)"],
+    [3, "in", "In Stock (3 available)"],
+    [6, "in", "In Stock (6 available)"],
   ] as const)
-    assert.equal(stockLabel(inventory), expected);
+    assert.deepEqual(stockStatus(inventory), {kind, label});
 });
 
 test("option prompts use metadata without guessing sizes from variant titles", () => {

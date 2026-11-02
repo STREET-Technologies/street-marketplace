@@ -1,5 +1,6 @@
 "use client";
-import { stockLabel, productPriceSummary } from "../lib/product-presentation";
+import { productPriceSummary } from "../lib/product-presentation";
+import StockStatus from "./stock-status";
 import { ProductOptions } from "./product-options";
 import {
   buildOptionModel,
@@ -1072,9 +1073,7 @@ function Product({
                 setChoice({ key: choiceKey, values: {}, variantId })
               }
             />
-            <p role="status" className="stock-status">
-              {selected ? stockLabel(selected.inventory) : ""}
-            </p>
+            <StockStatus inventory={selected?.inventory} />
             <AddToBag
               outlet={{
                 vendorId: params.vendorId,
