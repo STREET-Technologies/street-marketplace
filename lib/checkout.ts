@@ -21,12 +21,7 @@ export function checkoutVisibility(
 }
 
 export type CheckoutStatus =
-  | "preparing"
-  | "ready"
-  | "uncertain"
-  | "failed"
-  | "completed"
-  | "cancelled";
+  "preparing" | "ready" | "uncertain" | "failed" | "completed" | "cancelled";
 export type CheckoutResult = {
   userId: string;
   id: string;
@@ -145,4 +140,17 @@ export class CheckoutNotStarted extends Error {
       "Checkout was not started. Review your bag, address and contact details before trying again.",
     );
   }
+}
+
+export function canReplaceCheckout(
+  saved: SavedCheckout,
+  result: CheckoutResult | null,
+): boolean {
+  if (saved.notStarted && !saved.id) return true;
+  return (
+    !!saved.id &&
+    result?.id === saved.id &&
+    result.userId === saved.owner &&
+    ["completed", "failed", "cancelled"].includes(result.status)
+  );
 }

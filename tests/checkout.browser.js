@@ -181,7 +181,7 @@ async (page) => {
   );
   status = "completed";
   await page.reload();
-  await page.getByText("Order placed.", { exact: false }).waitFor();
+  await page.getByRole("button", { name: "Checkout", exact: true }).waitFor();
   if (
     (
       await page.evaluate(
@@ -238,7 +238,7 @@ async (page) => {
     throw Error("Owned conflict did not recover");
   status = "completed";
   await page.reload();
-  await page.getByText("Order placed.", { exact: false }).waitFor();
+  await page.getByRole("button", { name: "Checkout", exact: true }).waitFor();
   if (!(await page.evaluate((key) => localStorage.getItem(key), bagKey)))
     throw Error("Recovered unknown snapshot cleared bag");
   conflict = false;
@@ -250,16 +250,27 @@ async (page) => {
     .click();
   await page.getByRole("button", { name: /Home.*Account default/ }).click();
   await page.getByRole("button", { name: "Checkout", exact: true }).click();
-  await page.getByRole("button", { name: "Done", exact: true }).waitFor();
-  if (
-    !(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), key))
-      .notStarted
-  )
-    throw Error("Definitive preflight not retained for explicit reset");
-  await page.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Checkout", exact: true }).waitFor();
-  if (await page.evaluate((key) => localStorage.getItem(key), key))
-    throw Error("Explicit reset failed");
+  await page.getByRole("alert").waitFor();
+  const rejected = await page.evaluate(
+    (key) => JSON.parse(localStorage.getItem(key)),
+    key,
+  );
+  if (!rejected.notStarted)
+    throw Error("Definitive preflight not retained for explicit retry");
+  notStarted = false;
+  status = "preparing";
+  await page.getByRole("button", { name: "Checkout", exact: true }).click();
+  await page
+    .getByText("Preparing your checkout. Check its status in a moment.", {
+      exact: true,
+    })
+    .waitFor();
+  const restarted = await page.evaluate(
+    (key) => JSON.parse(localStorage.getItem(key)),
+    key,
+  );
+  if (restarted.attemptKey === rejected.attemptKey)
+    throw Error("Explicit checkout did not renew confirmed no-start attempt");
   currentOwner = addressId;
   await page.evaluate(() =>
     window.dispatchEvent(new Event("street:session-changed")),
@@ -275,4 +286,4 @@ async (page) => {
   )
     throw Error("Mobile overflow");
   return "PASS disabled gate; stable pre-mutation key; lost-response explicit same-intent retry; same-tab hosted handoff; uncertain return has no mutation; completed preserves newer bag and clears exact snapshot; owned-conflict recovery preserves unknown snapshot; account isolation; mobile overflow absent";
-}
+};

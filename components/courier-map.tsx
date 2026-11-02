@@ -49,22 +49,27 @@ export default function CourierMap({
       return;
     }
     map.current = instance;
-    const marker = (label: string, kind: string) => {
+    // Same Material icons as Flutter's delivery_dining and location_on.
+    const marker = (kind: "rider" | "destination") => {
       const element = document.createElement("span");
+      const label = kind === "rider" ? "Rider" : "Delivery address";
       element.className = `tracking-map-marker ${kind}`;
-      element.textContent = label;
-      element.setAttribute(
-        "aria-label",
-        kind === "rider" ? "Rider" : "Delivery address",
-      );
+      element.setAttribute("role", "img");
+      element.setAttribute("aria-label", label);
+      element.title = label;
+      const icon = document.createElement("img");
+      icon.src = `/assets/icons/${kind === "rider" ? "delivery-dining" : "location-on"}.svg`;
+      icon.alt = "";
+      icon.setAttribute("aria-hidden", "true");
+      element.append(icon);
       return element;
     };
     const customer = new mapboxgl.Marker({
-      element: marker("Home", "destination"),
+      element: marker("destination"),
     })
       .setLngLat(lngLat(destination))
       .addTo(instance);
-    rider.current = new mapboxgl.Marker({ element: marker("Rider", "rider") })
+    rider.current = new mapboxgl.Marker({ element: marker("rider") })
       .setLngLat(lngLat(latest.current))
       .addTo(instance);
     instance.addControl(

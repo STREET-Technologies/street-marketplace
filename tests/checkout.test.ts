@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server.js";
 import {
   checkoutVisibility,
+  canReplaceCheckout,
   checkoutAddressIssue,
   CHECKOUT_VENDOR,
   CHECKOUT_OUTLET,
@@ -296,4 +297,61 @@ test("resuming requires the original delivery address to be selected", () => {
   assert.equal(checkoutAddressIssue(saved, addressId), null);
   // Re-evaluating after a selection is cleared must block handoff as well.
   assert.notEqual(checkoutAddressIssue(saved, undefined), null);
+});
+
+test("only owner-matched terminal checkouts or confirmed no-start attempts may be replaced", () => {
+  const attempt: SavedCheckout = {
+    owner,
+    attemptKey: addressId,
+    id,
+    intent: cartIntent(cart, addressId),
+    snapshot: cart,
+  };
+  for (const status of ["completed", "failed", "cancelled"] as const)
+    assert.equal(
+      canReplaceCheckout(attempt, {
+        userId: owner,
+        id,
+        status,
+        orderId: "ST-000123",
+      }),
+      true,
+    );
+  for (const status of ["ready", "preparing", "uncertain"] as const)
+    assert.equal(
+      canReplaceCheckout(attempt, {
+        userId: owner,
+        id,
+        status,
+        orderId: "ST-000123",
+      }),
+      false,
+    );
+  assert.equal(canReplaceCheckout(attempt, null), false);
+  assert.equal(
+    canReplaceCheckout(attempt, {
+      userId: addressId,
+      id,
+      status: "completed",
+      orderId: "ST-000123",
+    }),
+    false,
+  );
+  assert.equal(
+    canReplaceCheckout(attempt, {
+      userId: owner,
+      id: addressId,
+      status: "completed",
+      orderId: "ST-000123",
+    }),
+    false,
+  );
+  assert.equal(
+    canReplaceCheckout({ ...attempt, notStarted: true }, null),
+    false,
+  );
+  assert.equal(
+    canReplaceCheckout({ ...attempt, id: undefined, notStarted: true }, null),
+    true,
+  );
 });

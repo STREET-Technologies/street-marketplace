@@ -606,16 +606,29 @@
   overflow: hidden;
 }
 .tracking-map-marker {
-  display: block;
-  padding: 6px 10px;
-  background: white;
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #111;
-  font: 600 12px sans-serif;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: #2196f3;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+}
+.tracking-map-marker img {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0) invert(1);
 }
 .tracking-map-marker.rider {
-  background: var(--lime);
+  width: 48px;
+  height: 48px;
+  border-width: 3px;
+  background: #ff9800;
+}
+.tracking-map-marker.rider img {
+  width: 28px;
+  height: 28px;
 }
 .tracking-map-error {
   background: var(--cream);

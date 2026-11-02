@@ -4,6 +4,7 @@ import { cartIntent } from "../lib/cart";
 import type { CartDraft } from "../lib/contracts";
 import {
   CheckoutConflict,
+  canReplaceCheckout,
   CheckoutNotStarted,
   checkoutVisibility,
   checkoutAddressIssue,
@@ -146,6 +147,22 @@ export default function Checkout({
           localStorage.getItem(checkoutStorageKey(owner)),
           owner,
         );
+        if (attempt && canReplaceCheckout(attempt, result)) {
+          if (
+            !cart?.lines.length ||
+            !addressId ||
+            !eligible ||
+            checkoutVisibility(cart, false) !== "start"
+          )
+            throw new Error(
+              "Check your bag and delivery address before checking out.",
+            );
+          localStorage.removeItem(checkoutStorageKey(owner));
+          attempt = null;
+          setSaved(null);
+          setResult(null);
+          terminalResult.current = false;
+        }
         if (!attempt) {
           if (!cart || !addressId || !eligible)
             throw new Error(
@@ -219,66 +236,28 @@ export default function Checkout({
       setBusy(false);
     }
   }
-  function finish() {
-    if (
-      !saved ||
-      (!saved.notStarted &&
-        !["completed", "failed", "cancelled"].includes(result?.status ?? ""))
-    )
-      return;
-    void navigator.locks?.request(checkoutStorageKey(owner), () => {
-      const current = restoreCheckout(
-        localStorage.getItem(checkoutStorageKey(owner)),
-        owner,
-      );
-      if (current?.attemptKey !== saved.attemptKey) return;
-      localStorage.removeItem(checkoutStorageKey(owner));
-      setSaved(null);
-      setResult(null);
-      setError("");
-      terminalResult.current = false;
-    });
-  }
   const active = saved?.owner === owner ? saved : null;
-  const status = result?.userId === owner && result.id === active?.id
-    ? result.status
-    : undefined;
+  const status =
+    result?.userId === owner && result.id === active?.id
+      ? result.status
+      : undefined;
   const restoring = !!active?.id && !status && !error;
   const visibility = checkoutVisibility(cart, !!active);
-  const addressIssue = active ? checkoutAddressIssue(active, addressId) : null;
+  const terminal = !!active && canReplaceCheckout(active, result);
+  const addressIssue =
+    active && !terminal ? checkoutAddressIssue(active, addressId) : null;
   // An empty bag only needs controls when a previously submitted checkout exists.
   // Keep storage errors visible so an unreadable attempt is not silently hidden.
   if (visibility === "hidden" && !error) return null;
-  if (!cart?.lines.length && (restoring || status === "completed") && !error)
-    return null;
+  if (!cart?.lines.length && (restoring || terminal) && !error) return null;
   if (!enabled)
     return (
       <button className="primary wide" disabled>
         Checkout coming later
       </button>
     );
-  const terminal =
-    active?.notStarted ||
-    (status && ["completed", "failed", "cancelled"].includes(status));
   return (
     <div className="checkout-actions">
-      {active?.notStarted && (
-        <p role="status">
-          Checkout was not started. Review your bag, address and contact details
-          before trying again.
-        </p>
-      )}
-      {status === "completed" && (
-        <p role="status">
-          Your order was placed. View its latest status in the STREET app.
-        </p>
-      )}
-      {status === "ready" && !addressIssue && (
-        <p role="status">
-          Your checkout is ready. Select Resume checkout to open Shopify and
-          complete your order.
-        </p>
-      )}
       {status === "uncertain" && (
         <p role="status">
           Shopify checkout could not be opened yet. Your bag and pending
@@ -299,56 +278,42 @@ export default function Checkout({
         </p>
       )}
       {error && <p role="alert">{error}</p>}
-      {terminal ? (
-        <button className="secondary wide" onClick={finish}>
-          Done
+      <button
+        className="primary wide"
+        disabled={
+          !loaded ||
+          restoring ||
+          busy ||
+          !!addressIssue ||
+          ((!active || terminal) &&
+            (!eligible ||
+              checkoutVisibility(cart, false) !== "start" ||
+              !addressId))
+        }
+        onClick={startOrResume}
+      >
+        {busy || restoring
+          ? "Checking checkout…"
+          : active && !terminal
+            ? "Resume checkout"
+            : "Checkout"}
+      </button>
+      {!restoring && addressIssue && <p role="status">{addressIssue}</p>}
+      {!restoring && !terminal && active?.id && (
+        <button
+          className="text-link cart-recheck"
+          disabled={busy}
+          onClick={() => check(active)}
+        >
+          Check order status
         </button>
-      ) : (
-        <>
-          <button
-            className="primary wide"
-            disabled={
-              !loaded ||
-              restoring ||
-              busy ||
-              !!addressIssue ||
-              (!active && (!eligible || visibility !== "start"))
-            }
-            onClick={startOrResume}
-          >
-            {busy || restoring
-              ? "Checking checkout…"
-              : active
-                ? "Resume checkout"
-                : "Checkout"}
-          </button>
-          {!restoring && addressIssue && <p role="status">{addressIssue}</p>}
-          {!restoring && active?.id && (
-            <button
-              className="text-link cart-recheck"
-              disabled={busy}
-              onClick={() => check(active)}
-            >
-              Check order status
-            </button>
-          )}
-          {!restoring && active && (
-            <p>
-              Resuming uses the items and delivery address submitted with this
-              checkout. Your current bag is kept until the order is confirmed.
-            </p>
-          )}
-          {!active && visibility === "pilot-only" && (
-            <p role="status">
-              Test checkout is currently available only for Gymshark · Regent
-              Street. Your bag is saved, but checkout isn’t enabled for this
-              shop yet.
-            </p>
-          )}
-          {!active && visibility === "start" && (
-            <p>Final shipping and discounts are confirmed at checkout.</p>
-          )}
-        </>
+      )}
+      {!active && visibility === "pilot-only" && (
+        <p role="status">
+          Test checkout is currently available only for Gymshark · Regent
+          Street. Your bag is saved, but checkout isn’t enabled for this shop
+          yet.
+        </p>
       )}
     </div>
   );
