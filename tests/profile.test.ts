@@ -46,6 +46,8 @@ function fixture(
     verdict?: string;
     validationStatus?: number;
     writeStatus?: number;
+    createdDefault?: boolean;
+    defaultStatus?: number;
   } = {},
 ) {
   const calls: {
@@ -68,6 +70,8 @@ function fixture(
       return options.validationStatus
         ? new Response("private failure", { status: options.validationStatus })
         : Response.json({ data: { verdict: options.verdict ?? "valid" } });
+    if (method === "PATCH" && body?.isDefault && options.defaultStatus)
+      return new Response("failure", { status: options.defaultStatus });
     if (options.writeStatus)
       return new Response("private error details", {
         status: options.writeStatus,
@@ -80,7 +84,13 @@ function fixture(
             ssoProvider: options.provider ?? null,
             password: "private",
           }
-        : { ...address, ...body },
+        : {
+            ...address,
+            ...body,
+            ...(method === "POST"
+              ? { isDefault: options.createdDefault ?? true }
+              : {}),
+          },
     });
   });
   return {
@@ -302,5 +312,58 @@ test("default and deletion verify ownership before side effects and send minimal
       method: action === "delete" ? "DELETE" : "PATCH",
       body: action === "delete" ? undefined : { isDefault: true },
     });
+  }
+});
+
+test("new default address is saved once then made default through the existing update endpoint", async () => {
+  const f = fixture({ createdDefault: false });
+  const response = await handleAddressChange(
+    request({ action: "save", ...addressFields, isDefault: true }),
+    f.api,
+  );
+  assert.equal(response.status, 200);
+  assert.equal(f.writes().length, 2);
+  assert.equal(f.writes()[0].method, "POST");
+  assert.deepEqual(f.writes()[1], {
+    path: `/user-addresses/${id}`,
+    method: "PATCH",
+    body: { isDefault: true },
+  });
+});
+test("default failure after create returns a saved-address warning, not a duplicate-create retry", async () => {
+  const f = fixture({ createdDefault: false, defaultStatus: 503 });
+  const response = await handleAddressChange(
+    request({ action: "save", ...addressFields, isDefault: true }),
+    f.api,
+  );
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).warning, /saved.*default/);
+  assert.equal(f.writes().filter((c) => c.method === "POST").length, 1);
+});
+test("address choices reject arbitrary new names and non-boolean defaults before writes", async () => {
+  for (const extra of [{ label: "My custom address" }, { isDefault: "true" }]) {
+    const f = fixture();
+    assert.equal(
+      (
+        await handleAddressChange(
+          request({ action: "save", ...addressFields, ...extra }),
+          f.api,
+        )
+      ).status,
+      400,
+    );
+    assert.equal(f.writes().length, 0);
+  }
+  for (const label of ["Home", "Work", "Apartment"]) {
+    const f = fixture();
+    assert.equal(
+      (
+        await handleAddressChange(
+          request({ action: "save", ...addressFields, label }),
+          f.api,
+        )
+      ).status,
+      200,
+    );
   }
 });

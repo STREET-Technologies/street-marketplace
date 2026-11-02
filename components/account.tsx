@@ -12,6 +12,7 @@ import { currentCustomer, sessionRequest } from "../lib/client/session";
 
 export default function Account() {
   const [tab, setTab] = useState("details");
+  const [addressReset, setAddressReset] = useState(0);
   const [user, setUser] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -77,7 +78,12 @@ export default function Account() {
           sidebar
           label="Profile options"
           value={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            if (next === "addresses" && tab === "addresses") {
+              setAddressReset(value => value + 1);
+            }
+            setTab(next);
+          }}
           tabs={[
             {
               key: "details",
@@ -87,7 +93,7 @@ export default function Account() {
             {
               key: "addresses",
               label: "My addresses",
-              content: <ProfileAddresses />,
+              content: <ProfileAddresses resetRequest={addressReset} />,
             },
             {
               key: "orders",

@@ -6,7 +6,7 @@
   gap: 10px;
   font-weight: 600;
 }
-.account-content input,
+.account-content input:not([type="radio"]):not([type="checkbox"]),
 .account-content textarea {
   width: 100%;
   min-height: 52px;
@@ -230,18 +230,18 @@
 .order-heading {
   margin-bottom: 28px;
 }
-.order-heading-title {
+.profile-heading-title {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.order-heading-title h2 {
+.profile-heading-title h2 {
   margin: 0;
 }
 .order-heading > p {
   color: var(--muted);
 }
-.order-refresh {
+.profile-heading-action {
   display: inline-grid;
   place-items: center;
   flex: 0 0 40px;
@@ -253,11 +253,11 @@
   color: var(--muted);
   background: transparent;
 }
-.order-refresh:hover {
+.profile-heading-action:hover {
   color: var(--ink);
   background: var(--sand);
 }
-.order-refresh svg {
+.profile-heading-action svg {
   width: 20px;
   height: 20px;
 }
@@ -639,4 +639,48 @@
     flex-direction: column;
     gap: 16px;
   }
+}
+
+.address-label-options {
+  border: 0;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.address-label-options legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.address-label-options > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.address-label-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.address-label-options label:has(:checked) {
+  background: var(--lime);
+  border-color: transparent;
+}
+.address-label-options input,
+.address-default-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+.account-content .address-default-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  min-height: 44px;
+  font-size: 14px;
+  cursor: pointer;
 }

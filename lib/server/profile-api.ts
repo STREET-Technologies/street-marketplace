@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server.js";
 import {
   profilePermissions,
+  addressLabels,
   type AddressFields,
   type ProfileChanges,
 } from "../profile.ts";
@@ -103,7 +104,7 @@ export async function handleAddressChange(
     fields(
       body,
       body.action === "save"
-        ? ["action", "id", ...addressFields]
+        ? ["action", "id", "isDefault", ...addressFields]
         : ["action", "id"],
     );
     const id =
@@ -146,6 +147,13 @@ export async function handleAddressChange(
         ),
       ]),
     ) as unknown as AddressFields;
+    if (
+      !addressLabels.some((label) => label === address.label) &&
+      address.label !== existing?.label
+    )
+      throw new ApiError(400, "Choose Home, Work or Apartment.");
+    if (body.isDefault !== undefined && typeof body.isDefault !== "boolean")
+      throw new ApiError(400, "Choose whether this is your default address.");
     address.postcode = address.postcode.toUpperCase();
     if (
       existing &&
@@ -153,10 +161,12 @@ export async function handleAddressChange(
       existing.countryCode !== undefined
     )
       throw new ApiError(400, "Please manage this address in the STREET app.");
-    const changes: Partial<AddressFields> = {};
+    const changes: Partial<AddressFields> & { isDefault?: boolean } = {};
     for (const key of addressFields)
       if (!existing || address[key] !== (existing[key] ?? ""))
         changes[key] = address[key];
+    if (existing && body.isDefault === true && !existing.isDefault)
+      changes.isDefault = true;
     const locationChanged =
       !existing ||
       ["line1", "line2", "city", "postcode"].some((key) => key in changes);
@@ -182,14 +192,26 @@ export async function handleAddressChange(
     }
     // Only changed fields are sent. Label/instruction edits preserve a confirmed app pin.
     // Text location edits omit coordinates so the backend resolves a fresh location.
-    if (!existing || Object.keys(changes).length)
-      await api.saveAddress(
+    if (!existing || Object.keys(changes).length) {
+      const saved = await api.saveAddress(
         token,
         id,
         existing
           ? changes
           : { ...address, country: "United Kingdom", countryCode: "GB" },
       );
+      if (!existing && body.isDefault === true && !saved.isDefault) {
+        try {
+          await api.saveAddress(token, saved.id, { isDefault: true });
+        } catch {
+          return json({
+            success: true,
+            warning:
+              "Your address was saved, but couldn’t be set as default. Choose Make default in your address list to try again.",
+          });
+        }
+      }
+    }
     return json({ success: true });
   } catch (error) {
     return errorResponse(error);

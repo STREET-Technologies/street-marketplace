@@ -99,7 +99,7 @@ export default function ProfileOrders({ userId }: { userId: string }) {
         </button>
       )}
       <div className="order-heading">
-        <div className="order-heading-title">
+        <div className="profile-heading-title">
           <h2>
             {selected
               ? selectedStatus && orderGroup(selectedStatus) === "active"
@@ -108,7 +108,7 @@ export default function ProfileOrders({ userId }: { userId: string }) {
               : "My orders"}
           </h2>
           <button
-            className="order-refresh"
+            className="profile-heading-action"
             onClick={refresh}
             aria-label="Refresh"
             title="Refresh orders"

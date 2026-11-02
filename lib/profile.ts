@@ -20,3 +20,5 @@ export interface AddressFields {
   postcode: string;
   deliveryInstructions: string;
 }
+
+export const addressLabels = ["Home", "Work", "Apartment"] as const;

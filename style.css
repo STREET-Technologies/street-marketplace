@@ -347,19 +347,23 @@ p {
   gap: 23px;
   margin-top: 24px;
 }
-.primary {
+.primary,
+.secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 28px;
-  background: var(--ink);
-  color: white;
   border-radius: var(--radius-control);
-  padding: 15px 20px;
+  padding: 12px 20px;
   font-size: 15px;
   line-height: 1.5;
   font-weight: 600;
   min-height: 48px;
+  margin-top: 0;
+}
+.primary {
+  background: var(--ink);
+  color: white;
 }
 .primary:hover {
   background: var(--lime);
@@ -1102,11 +1106,8 @@ legend {
   color: var(--muted);
 }
 .secondary {
-  padding: 15px;
   background: var(--sand);
-  border-radius: var(--radius-control);
-  font-size: 12px;
-  margin-top: 12px;
+  color: var(--ink);
 }
 .secondary:hover {
   background: var(--line);
@@ -2939,13 +2940,6 @@ a.area-card,
 .customer-empty .primary:hover,
 .primary--lime:hover {
   background: color-mix(in srgb, var(--lime) 90%, var(--ink));
-}
-.customer-page .secondary {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 44px;
-  margin-top: 0;
 }
 .customer-page button:disabled {
   opacity: 0.5;

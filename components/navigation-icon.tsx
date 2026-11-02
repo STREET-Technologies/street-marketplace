@@ -2,7 +2,16 @@ export default function NavigationIcon({
   name,
   filled = false,
 }: {
-  name: "profile" | "heart" | "bag" | "location" | "search" | "store" | "history" | "refresh";
+  name:
+    | "profile"
+    | "heart"
+    | "bag"
+    | "location"
+    | "search"
+    | "store"
+    | "history"
+    | "refresh"
+    | "plus";
   filled?: boolean;
 }) {
   return (
@@ -17,12 +26,31 @@ export default function NavigationIcon({
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {name === "refresh" && <><path d="M20 4v5h-5" /><path d="m20 9-2.3-2.3a8 8 0 1 0 2.1 7.3" /></>}
-      {name === "history" && <><path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7" /><path d="M12 7v5l3 2" /></>}
+      {name === "plus" && <path d="M12 5v14M5 12h14" />}
+      {name === "refresh" && (
+        <>
+          <path d="M20 4v5h-5" />
+          <path d="m20 9-2.3-2.3a8 8 0 1 0 2.1 7.3" />
+        </>
+      )}
+      {name === "history" && (
+        <>
+          <path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7" />
+          <path d="M12 7v5l3 2" />
+        </>
+      )}
       {name === "profile" && (
         <>
-          <circle cx="12" cy="7" r="3.5" fill={filled ? "currentColor" : "none"} />
-          <path d="M4 21v-2a8 8 0 0 1 16 0v2Z" fill={filled ? "currentColor" : "none"} />
+          <circle
+            cx="12"
+            cy="7"
+            r="3.5"
+            fill={filled ? "currentColor" : "none"}
+          />
+          <path
+            d="M4 21v-2a8 8 0 0 1 16 0v2Z"
+            fill={filled ? "currentColor" : "none"}
+          />
         </>
       )}
       {name === "store" && (
@@ -36,7 +64,10 @@ export default function NavigationIcon({
       )}
       {name === "bag" && (
         <>
-          <path d="M4 8h16l-1 13H5L4 8Z" fill={filled ? "currentColor" : "none"} />
+          <path
+            d="M4 8h16l-1 13H5L4 8Z"
+            fill={filled ? "currentColor" : "none"}
+          />
           <path d="M8 9V6a4 4 0 0 1 8 0v3" />
         </>
       )}

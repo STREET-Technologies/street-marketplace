@@ -1,18 +1,13 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SavedAddress } from "../lib/contracts";
-import type { AddressFields } from "../lib/profile";
+import { addressLabels, type AddressFields } from "../lib/profile";
 import { postAccountData } from "../lib/client/session";
 import { useCustomer } from "./customer-context";
+import NavigationIcon from "./navigation-icon";
 import { CustomerEmptyState } from "./customer-page";
 
 const addressInputs = [
-  {
-    key: "label",
-    label: "Address name",
-    autoComplete: "off",
-    placeholder: "Home, Work…",
-  },
   { key: "line1", label: "Address line 1", autoComplete: "address-line1" },
   {
     key: "line2",
@@ -32,11 +27,14 @@ function AddressForm({
 }: {
   address: SavedAddress | null;
   busy: boolean;
-  onSave: (value: AddressFields) => void;
+  onSave: (value: AddressFields & { isDefault: boolean }) => void;
   onCancel: () => void;
 }) {
-  const [value, setValue] = useState<AddressFields>({
-    label: address?.label ?? "",
+  const [value, setValue] = useState<AddressFields & { isDefault: boolean }>({
+    label:
+      addressLabels.find((label) => label === address?.label) ??
+      (address ? "" : "Home"),
+    isDefault: address?.isDefault ?? false,
     line1: address?.line1 ?? "",
     line2: address?.line2 ?? "",
     city: address?.city ?? "",
@@ -54,17 +52,32 @@ function AddressForm({
     >
       <h3>{address ? "Edit address" : "Add an address"}</h3>
       <p>United Kingdom</p>
+      <fieldset className="address-label-options" disabled={busy}>
+        <legend>Address name</legend>
+        <div>
+          {addressLabels.map((label) => (
+            <label key={label}>
+              <input
+                type="radio"
+                name="address-label"
+                value={label}
+                checked={value.label === label}
+                required
+                onChange={() => setValue({ ...value, label })}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="profile-fields">
         {addressInputs.map((field) => (
           <label key={field.key}>
             {field.label}
             <input
-              autoFocus={field.key === "label"}
+              autoFocus={field.key === "line1"}
               name={field.key}
               autoComplete={field.autoComplete}
-              placeholder={
-                "placeholder" in field ? field.placeholder : undefined
-              }
               value={value[field.key]}
               onChange={(e) =>
                 setValue({ ...value, [field.key]: e.target.value })
@@ -95,6 +108,17 @@ function AddressForm({
           />
         </label>
       </div>
+      <label className="address-default-option">
+        <input
+          type="checkbox"
+          checked={value.isDefault}
+          disabled={busy || !!address?.isDefault}
+          onChange={(event) =>
+            setValue({ ...value, isDefault: event.target.checked })
+          }
+        />
+        <span>Set as default address</span>
+      </label>
       <div className="profile-actions">
         <button className="primary" disabled={busy}>
           {busy ? "Saving…" : "Save address"}
@@ -112,7 +136,7 @@ function AddressForm({
   );
 }
 
-export default function ProfileAddresses() {
+export default function ProfileAddresses({ resetRequest = 0 }: { resetRequest?: number }) {
   const { state, refresh } = useCustomer();
   const [editing, setEditing] = useState<SavedAddress | null | undefined>(
     undefined,
@@ -122,6 +146,14 @@ export default function ProfileAddresses() {
   const pending = useRef(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    // Do not interrupt a submitted save or allow a second mutation while it finishes.
+    if (pending.current) return;
+    setEditing(undefined);
+    setRemoving(null);
+    setError("");
+    setMessage("");
+  }, [resetRequest]);
   async function change(body: unknown, success: string) {
     if (pending.current) return;
     pending.current = true;
@@ -129,10 +161,13 @@ export default function ProfileAddresses() {
     setError("");
     setMessage("");
     try {
-      await postAccountData("/api/addresses/change", body);
+      const result = await postAccountData<{ warning?: string }>(
+        "/api/addresses/change",
+        body,
+      );
       setEditing(undefined);
       setRemoving(null);
-      setMessage(success);
+      setMessage(result.warning ?? success);
       refresh();
     } catch (e) {
       setError(
@@ -147,27 +182,29 @@ export default function ProfileAddresses() {
   }
   return (
     <section className="profile-section">
-      <div className="profile-section-heading">
-        <div>
+      <div>
+        <div className="profile-heading-title">
           <h2>My addresses</h2>
-          <p>Your saved addresses, shared with the STREET app.</p>
+          {editing === undefined &&
+            state.status === "ready" &&
+            !!state.data?.addresses.length && (
+              <button
+                className="profile-heading-action"
+                aria-label="Add address"
+                title="Add address"
+                disabled={busy}
+                onClick={() => {
+                  setEditing(null);
+                  setError("");
+                  setMessage("");
+                  setRemoving(null);
+                }}
+              >
+                <NavigationIcon name="plus" />
+              </button>
+            )}
         </div>
-        {editing === undefined &&
-          state.status === "ready" &&
-          !!state.data?.addresses.length && (
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() => {
-                setEditing(null);
-                setError("");
-                setMessage("");
-                setRemoving(null);
-              }}
-            >
-              Add address
-            </button>
-          )}
+        <p>Your saved addresses, shared with the STREET app.</p>
       </div>
       {error && (
         <p role="alert" className="account-error">
