@@ -26,7 +26,15 @@ export function CustomerEmptyState({
   message,
   children,
 }: {
-  icon: "profile" | "heart" | "bag" | "store" | "location" | "search" | "history";
+  icon:
+    | "profile"
+    | "heart"
+    | "bag"
+    | "store"
+    | "location"
+    | "search"
+    | "history"
+    | "returns";
   title: string;
   message: string;
   children?: ReactNode;

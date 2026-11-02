@@ -10,11 +10,16 @@ export async function handleOrders(request: NextRequest, api: StreetApi) {
     if (
       [...params.keys()].some(
         (key) =>
-          !["page", "group", "reference"].includes(key) ||
+          !["page", "group", "reference", "counts"].includes(key) ||
           params.getAll(key).length !== 1,
       )
     )
       throw new ApiError(400, "Unsupported order filter.");
+    if (params.has("counts")) {
+      if (params.size !== 1 || params.get("counts") !== "true")
+        throw new ApiError(400, "Choose a valid order count request.");
+      return json(await api.orderCounts(token));
+    }
     if (params.has("reference")) {
       if (params.size !== 1) throw new ApiError(400, "Choose one order.");
       return json(
@@ -27,10 +32,12 @@ export async function handleOrders(request: NextRequest, api: StreetApi) {
       !Number.isSafeInteger(page) ||
       page < 1 ||
       page > 100000 ||
-      !["active", "past"].includes(group)
+      !["active", "past", "returns"].includes(group)
     )
       throw new ApiError(400, "Choose a valid order page.");
-    return json(await api.orders(token, group as "active" | "past", page));
+    return json(
+      await api.orders(token, group as "active" | "past" | "returns", page),
+    );
   } catch (error) {
     return errorResponse(error);
   }

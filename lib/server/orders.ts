@@ -9,6 +9,8 @@ import {
 } from "./api-values.ts";
 import {
   orderGroup,
+  matchesOrderGroup,
+  type OrderCounts,
   type OrderCard,
   type OrderDetail,
   type OrderGroup,
@@ -100,7 +102,10 @@ export function orderCardFrom(value: unknown): OrderCard {
   if (!Number.isFinite(Date.parse(createdAt)))
     throw new ApiError(502, "STREET returned an invalid order date.");
   return {
-    trackingId: typeof order.id === "string" && UUID_PATTERN.test(order.id) ? order.id : null,
+    trackingId:
+      typeof order.id === "string" && UUID_PATTERN.test(order.id)
+        ? order.id
+        : null,
     reference: orderReference(order.orderId),
     store: optionalString(vendor.storeName) ?? "Shop",
     image: items.length ? itemFrom(items[0]).image : null,
@@ -115,16 +120,63 @@ export function orderDetailFrom(value: unknown): OrderDetail {
     vendor = object(order.vendor);
   if (!Array.isArray(order.items))
     throw new ApiError(502, "STREET returned incomplete order details.");
-  const delivery = object(order.delivery), courier = object(delivery.courier);
+  const delivery = object(order.delivery),
+    courier = object(delivery.courier);
   const returns = Array.isArray(order.returns) ? order.returns : [];
   return {
     ...orderCardFrom(order),
+    returns: returns.map((value) => {
+      const row = object(value);
+      const lines = Array.isArray(row.lineItems)
+        ? row.lineItems.map(object)
+        : [];
+      return {
+        status: optionalString(row.status) ?? "UNKNOWN",
+        note: optionalString(row.customerNote),
+        createdAt: isoTime(row.createdAt),
+        refunded: amount(row.refundedAmount, 0),
+        quantity: lines.reduce(
+          (sum, line) =>
+            sum +
+            (Number.isSafeInteger(line.quantity) && Number(line.quantity) > 0
+              ? Number(line.quantity)
+              : 0),
+          0,
+        ),
+        reasons: [
+          ...new Set(
+            lines
+              .map((line) => optionalString(line.reason))
+              .filter(
+                (reason): reason is string =>
+                  !!reason && reason.toLowerCase() !== "unknown",
+              ),
+          ),
+        ],
+      };
+    }),
     tracking: {
-      jobId: optionalString(delivery.jobId), topic: optionalString(delivery.status), task: null,
-      courier: Object.keys(courier).length || coordinates(delivery.courierLocation) ? {name: optionalString(courier.name), location: coordinates(delivery.courierLocation) ?? coordinates(courier.location)} : null,
-      pickupEta: isoTime(delivery.estimatedPickupTime), deliveryEta: isoTime(delivery.estimatedDeliveryTime),
-      pin: typeof delivery.pinCode === "string" && /^[0-9]{4,8}$/.test(delivery.pinCode) ? delivery.pinCode : null,
-      pickup: coordinates(order.storeLocation), destination: coordinates(order.deliveryLocation),
+      jobId: optionalString(delivery.jobId),
+      topic: optionalString(delivery.status),
+      task: null,
+      courier:
+        Object.keys(courier).length || coordinates(delivery.courierLocation)
+          ? {
+              name: optionalString(courier.name),
+              location:
+                coordinates(delivery.courierLocation) ??
+                coordinates(courier.location),
+            }
+          : null,
+      pickupEta: isoTime(delivery.estimatedPickupTime),
+      deliveryEta: isoTime(delivery.estimatedDeliveryTime),
+      pin:
+        typeof delivery.pinCode === "string" &&
+        /^[0-9]{4,8}$/.test(delivery.pinCode)
+          ? delivery.pinCode
+          : null,
+      pickup: coordinates(order.storeLocation),
+      destination: coordinates(order.deliveryLocation),
     },
     items: order.items.map(itemFrom),
     address: optionalString(order.deliveryAddress) ?? "",
@@ -166,13 +218,53 @@ export async function orderPageFrom(
       throw new ApiError(502, "STREET returned an unexpected order history.");
     const orders = data.orders
       .map(orderCardFrom)
-      .filter(
-        (o) =>
-          o.status !== "PAYMENT_CANCELLED" && orderGroup(o.status) === group,
-      );
+      .filter((o) => matchesOrderGroup(o, group));
     const nextPage = page * 20 < Number(meta.total) ? page + 1 : null;
     if (orders.length || nextPage === null || scanned === 4)
       return { orders, nextPage };
   }
   throw new ApiError(502, "Unable to read order history.");
+}
+
+// Count independently of visible pagination. Never expose a partial scan as a total.
+export async function orderCountsFrom(
+  read: (page: number, limit: number) => Promise<unknown>,
+): Promise<OrderCounts> {
+  const counts: OrderCounts = { active: 0, past: 0, returns: 0 };
+  const seen = new Set<string>();
+  let expectedTotal: number | null = null;
+  const limit = 100;
+  for (let page = 1; page <= 10; page++) {
+    const data = record(await read(page, limit)),
+      meta = record(data.meta);
+    if (
+      !Array.isArray(data.orders) ||
+      !Number.isSafeInteger(meta.total) ||
+      Number(meta.total) < 0 ||
+      meta.page !== page ||
+      meta.limit !== limit ||
+      (expectedTotal !== null && meta.total !== expectedTotal)
+    )
+      throw new ApiError(502, "Order totals are temporarily unavailable.");
+    expectedTotal = Number(meta.total);
+    for (const value of data.orders) {
+      const row = record(value),
+        reference = orderReference(row.orderId);
+      if (seen.has(reference))
+        throw new ApiError(502, "Order totals are temporarily unavailable.");
+      seen.add(reference);
+      const order = {
+        status: requiredString(row.status),
+        returnStatus: optionalString(row.returnStatus) ?? "NONE",
+      };
+      for (const group of ["active", "past", "returns"] as const)
+        if (matchesOrderGroup(order, group)) counts[group]++;
+    }
+    if (page * limit >= expectedTotal) {
+      if (seen.size !== expectedTotal)
+        throw new ApiError(502, "Order totals are temporarily unavailable.");
+      return counts;
+    }
+  }
+  throw new ApiError(502, "Order totals are temporarily unavailable.");
 }

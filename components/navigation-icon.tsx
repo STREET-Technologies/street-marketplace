@@ -10,6 +10,7 @@ export default function NavigationIcon({
     | "search"
     | "store"
     | "history"
+    | "returns"
     | "refresh"
     | "plus";
   filled?: boolean;
@@ -26,6 +27,12 @@ export default function NavigationIcon({
       strokeLinejoin="round"
       aria-hidden="true"
     >
+      {name === "returns" && (
+        <>
+          <path d="M9 3h9l3 3v15H7V10" />
+          <path d="M3 7h10v7M3 7l4-4M3 7l4 4" />
+        </>
+      )}
       {name === "plus" && <path d="M12 5v14M5 12h14" />}
       {name === "refresh" && (
         <>

@@ -146,3 +146,9 @@ The browser persists an account-scoped attempt UUID and submitted bag snapshot b
 The same-origin adapter rejects arbitrary fields, foreign accounts and origins, projects a minimal response, and makes no automatic mutation retries. If a session expires, sign in again before resuming. Back/close never cancels an order. Final shipping and discounts remain subject to Shopify checkout; browser fixtures do not verify real test-payment mode, shipping charges or webhook delivery. See `docs/web-checkout-plan.md` for the gated live acceptance checks.
 
 Browser fixture: with the ordinary disabled dev server on port 4319 and a temporary production server (`CHECKOUT_ENABLED=true npm start -- --port 4320`) after building, run the Playwright CLI `run-code --filename tests/checkout.browser.js` in an isolated session. All account, bag, checkout and hosted-shop responses are mocked; the fixture creates no real orders/payments. Stop the temporary enabled server afterwards.
+
+### Orders and returns (TT-544)
+
+My orders has Active orders, Order history and read-only Returns, sharing one responsive summary. Returns are managed by retailers through Shopify; no submission or processing actions are exposed. Customer-safe return fields include status, note, quantity, reasons and actual refunded amount. Declined/cancelled returns stay in order history, matching mobile.
+
+`GET /api/orders?counts=true` calculates all view totals using existing authenticated order pages and the same filters as each list. Counts are independent of visible pagination; returns count orders with returns, not returned items. Scans are capped at ten 100-order pages. Partial, duplicate or changing scans return an unavailable response rather than a misleading total. No backend schema/API changes are required. Counts refresh with manual refresh, focus and observed live order transitions.

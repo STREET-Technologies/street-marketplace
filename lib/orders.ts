@@ -1,4 +1,4 @@
-export type OrderGroup = "active" | "past";
+export type OrderGroup = "active" | "past" | "returns";
 export type OrderItem = {
   name: string;
   image: string | null;
@@ -18,7 +18,16 @@ export type OrderCard = {
   total: number;
 };
 export type OrderPage = { orders: OrderCard[]; nextPage: number | null };
+export type OrderReturn = {
+  status: string;
+  note: string | null;
+  createdAt: string | null;
+  refunded: number;
+  quantity: number;
+  reasons: string[];
+};
 export type OrderDetail = OrderCard & {
+  returns: OrderReturn[];
   tracking: import("./tracking.ts").DeliveryTracking;
   items: OrderItem[];
   address: string;
@@ -72,9 +81,11 @@ const orderLabels: Record<string, string> = {
 };
 export function orderStatus(order: Pick<OrderCard, "status" | "returnStatus">) {
   return {
-    label:
-      hasReturn(order.returnStatus) ? returnLabels[order.returnStatus]
-        : Object.hasOwn(orderLabels, order.status) ? orderLabels[order.status] : "Status unavailable",
+    label: hasReturn(order.returnStatus)
+      ? returnLabels[order.returnStatus]
+      : Object.hasOwn(orderLabels, order.status)
+        ? orderLabels[order.status]
+        : "Status unavailable",
     tone: ["REQUESTED", "IN_PROGRESS"].includes(order.returnStatus)
       ? "attention"
       : hasReturn(order.returnStatus)
@@ -112,4 +123,40 @@ export function orderTotals(order: OrderDetail) {
       order.deliveryFee > 0 &&
       order.shippingRefunded <= 0,
   };
+}
+
+export function returnStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    REQUESTED: "Return requested",
+    OPEN: "Return in progress",
+    CLOSED: "Return completed",
+    DECLINED: "Return declined",
+    CANCELED: "Return cancelled",
+    CANCELLED: "Return cancelled",
+  };
+  return Object.hasOwn(labels, status)
+    ? labels[status]
+    : "Return status unavailable";
+}
+
+export function paymentMethodLabel(method: string | null): string | null {
+  const value = method?.trim();
+  if (!value || ["others", "unknown"].includes(value.toLowerCase()))
+    return null;
+  return ["shopify_checkout", "shopify"].includes(value.toLowerCase())
+    ? "Shopify"
+    : value;
+}
+
+export type OrderCounts = Record<OrderGroup, number>;
+export function matchesOrderGroup(
+  order: Pick<OrderCard, "status" | "returnStatus">,
+  group: OrderGroup,
+) {
+  return (
+    order.status !== "PAYMENT_CANCELLED" &&
+    (group === "returns"
+      ? hasReturn(order.returnStatus)
+      : orderGroup(order.status) === group)
+  );
 }

@@ -3,8 +3,17 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server.js";
 import { createStreetApi } from "../lib/server/street-api.ts";
 import { handleOrders } from "../lib/server/orders-api.ts";
-import { orderDetailFrom, orderPageFrom } from "../lib/server/orders.ts";
-import { orderGroup, orderStatus, orderTotals } from "../lib/orders.ts";
+import {
+  orderDetailFrom,
+  orderPageFrom,
+  orderCountsFrom,
+} from "../lib/server/orders.ts";
+import {
+  orderGroup,
+  orderStatus,
+  orderTotals,
+  paymentMethodLabel,
+} from "../lib/orders.ts";
 
 const item = {
   quantity: 2,
@@ -254,4 +263,148 @@ test("refund arithmetic preserves original charge and keeps current total separa
 test("malformed financial data fails visibly rather than rendering a zero amount", () => {
   for (const totalAmount of ["bad", -1, null, {}])
     assert.throws(() => orderDetailFrom({ ...order, totalAmount }));
+});
+
+test("returns filter mirrors mobile and keeps declined/cancelled returns in history", async () => {
+  const statuses = [
+    "NONE",
+    "REQUESTED",
+    "IN_PROGRESS",
+    "PARTIAL",
+    "COMPLETE",
+    "DECLINED",
+    "CANCELLED",
+  ];
+  const result = await orderPageFrom(
+    async (page) => ({
+      orders: statuses.map((returnStatus) => ({ ...order, returnStatus })),
+      meta: { page, limit: 20, total: 7 },
+    }),
+    "returns",
+    1,
+  );
+  assert.deepEqual(
+    result.orders.map((row) => row.returnStatus),
+    ["REQUESTED", "IN_PROGRESS", "PARTIAL", "COMPLETE"],
+  );
+  assert.equal(result.nextPage, null);
+  const f = fixture();
+  assert.equal((await handleOrders(req("?group=returns"), f.api)).status, 200);
+});
+test("returns scan older pages and never show a false empty state at the scan limit", async () => {
+  const read = async (page: number) => ({
+    orders: [{ ...order, returnStatus: page === 7 ? "COMPLETE" : "NONE" }],
+    meta: { page, limit: 20, total: 140 },
+  });
+  assert.deepEqual(await orderPageFrom(read, "returns", 1), {
+    orders: [],
+    nextPage: 6,
+  });
+  const result = await orderPageFrom(read, "returns", 6);
+  assert.equal(result.orders.length, 1);
+  assert.equal(result.nextPage, null);
+});
+test("return projection exposes customer notes, reasons and actual refunds without Shopify identifiers", () => {
+  const result = orderDetailFrom({
+    ...order,
+    returns: [
+      {
+        id: "private-return-id",
+        shopifyReturnId: "private-shopify-id",
+        status: "OPEN",
+        refundAmount: 99,
+        refundedAmount: 10,
+        customerNote: "Retailer received your parcel",
+        createdAt: "2026-11-02T12:00:00Z",
+        lineItems: [
+          {
+            orderItemId: "private-item-id",
+            quantity: 2,
+            reason: "Size",
+            restockType: "private-restock",
+          },
+          { quantity: 1, reason: "Size" },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(result.returns, [
+    {
+      status: "OPEN",
+      note: "Retailer received your parcel",
+      createdAt: "2026-11-02T12:00:00.000Z",
+      refunded: 10,
+      quantity: 3,
+      reasons: ["Size"],
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(result.returns), /private-|99/);
+});
+
+test("payment display names hide internal Shopify checkout identifiers", () => {
+  assert.equal(paymentMethodLabel("shopify_checkout"), "Shopify");
+  assert.equal(paymentMethodLabel("Shopify"), "Shopify");
+  assert.equal(paymentMethodLabel("card"), "card");
+  assert.equal(paymentMethodLabel("unknown"), null);
+  assert.equal(paymentMethodLabel(null), null);
+});
+
+test("counts scan all pages with the same overlapping return/history filters", async () => {
+  const rows = Array.from({ length: 105 }, (_, i) => ({
+    ...order,
+    orderId: `ST-${String(i + 1).padStart(6, "0")}`,
+    status: i < 3 ? "CONFIRMED" : "DELIVERED",
+    returnStatus: i >= 100 ? "COMPLETE" : "NONE",
+  }));
+  const calls: number[] = [];
+  const result = await orderCountsFrom(async (page, limit) => {
+    calls.push(page);
+    return {
+      orders: rows.slice((page - 1) * limit, page * limit),
+      meta: { page, limit, total: rows.length },
+    };
+  });
+  assert.deepEqual(calls, [1, 2]);
+  assert.deepEqual(result, { active: 3, past: 102, returns: 5 });
+});
+test("count scan refuses partial or changing histories instead of reporting false totals", async () => {
+  await assert.rejects(() =>
+    orderCountsFrom(async (page, limit) => ({
+      orders: [],
+      meta: { page, limit, total: 1 },
+    })),
+  );
+  await assert.rejects(() =>
+    orderCountsFrom(async (page, limit) => ({
+      orders: [],
+      meta: { page, limit, total: page === 1 ? 101 : 102 },
+    })),
+  );
+  await assert.rejects(() =>
+    orderCountsFrom(async (page, limit) => ({
+      orders: [],
+      meta: { page, limit, total: 1001 },
+    })),
+  );
+  assert.deepEqual(
+    await orderCountsFrom(async (page, limit) => ({
+      orders: [],
+      meta: { page, limit, total: 0 },
+    })),
+    { active: 0, past: 0, returns: 0 },
+  );
+});
+test("counts route is private, authenticated and rejects mixed queries", async () => {
+  const f = fixture();
+  assert.equal(
+    (await handleOrders(req("?counts=true", ""), f.api)).status,
+    401,
+  );
+  for (const query of [
+    "?counts=false",
+    "?counts=true&group=returns",
+    "?counts=true&page=2",
+  ])
+    assert.equal((await handleOrders(req(query), f.api)).status, 400);
+  assert.equal(f.calls.length, 0);
 });

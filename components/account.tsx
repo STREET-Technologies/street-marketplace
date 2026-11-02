@@ -12,7 +12,7 @@ import { currentCustomer, sessionRequest } from "../lib/client/session";
 
 export default function Account() {
   const [tab, setTab] = useState("details");
-  const [addressReset, setAddressReset] = useState(0);
+  const [sectionReset, setSectionReset] = useState({ addresses: 0, orders: 0 });
   const [user, setUser] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -79,8 +79,8 @@ export default function Account() {
           label="Profile options"
           value={tab}
           onChange={(next) => {
-            if (next === "addresses" && tab === "addresses") {
-              setAddressReset(value => value + 1);
+            if (next === tab && (next === "addresses" || next === "orders")) {
+              setSectionReset(value => ({ ...value, [next]: value[next] + 1 }));
             }
             setTab(next);
           }}
@@ -93,28 +93,25 @@ export default function Account() {
             {
               key: "addresses",
               label: "My addresses",
-              content: <ProfileAddresses resetRequest={addressReset} />,
+              content: <ProfileAddresses resetRequest={sectionReset.addresses} />,
             },
             {
               key: "orders",
               label: "My orders",
-              content: tab === "orders" ? <ProfileOrders key={user.id} userId={user.id} /> : null,
+              content: tab === "orders" ? <ProfileOrders key={user.id} userId={user.id} resetRequest={sectionReset.orders} /> : null,
             },
           ]}
         />
         <aside className="profile-app">
           <h2>Continue in the STREET app</h2>
           <p>
-            Manage returns and view your credit balance in the
+            View your credit balance in the
             app. You can also manage notifications and account deletion there.
           </p>
         </aside>
         <div className="profile-actions profile-account-actions">
-          <a className="text-link" href="https://street.london/support">
-            Support &amp; help
-          </a>
           <button
-            className="text-link"
+            className="primary"
             disabled={busy}
             onClick={() =>
               run(async () => {

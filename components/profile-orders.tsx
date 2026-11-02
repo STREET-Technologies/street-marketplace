@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CustomerEmptyState } from "./customer-page";
 import CustomerTabs from "./customer-tabs";
 import NavigationIcon from "./navigation-icon";
@@ -9,6 +9,9 @@ import { orderGroup } from "../lib/orders";
 import { readAccountData, SessionError } from "../lib/client/session";
 import {
   hasReturn,
+  type OrderCounts,
+  returnStatusLabel,
+  paymentMethodLabel,
   orderDate,
   orderMoney,
   orderStatus,
@@ -62,13 +65,48 @@ function OrderError({ error, retry }: { error: Error; retry: () => void }) {
   );
 }
 
-export default function ProfileOrders({ userId }: { userId: string }) {
+export default function ProfileOrders({
+  userId,
+  resetRequest = 0,
+}: {
+  userId: string;
+  resetRequest?: number;
+}) {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [group, setGroup] = useState<OrderGroup>("active");
   const [selected, setSelected] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const list = useRef<HTMLDivElement>(null);
+  const [counts, setCounts] = useState<OrderCounts | null>(null);
+  const [countRevision, setCountRevision] = useState(0);
+  const updateCounts = useCallback(
+    () => setCountRevision((value) => value + 1),
+    [],
+  );
+  const [countFailed, setCountFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setCounts(null);
+    setCountFailed(false);
+    readAccountData<OrderCounts>(
+      "/api/orders",
+      new URLSearchParams({ counts: "true" }),
+    )
+      .then((value) => {
+        if (alive) setCounts(value);
+      })
+      .catch(() => {
+        if (alive) setCountFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, revision, selectedStatus, countRevision]);
   const refresh = () => setRevision((value) => value + 1);
+  useEffect(() => {
+    setSelected(null);
+    setSelectedStatus(null);
+  }, [resetRequest]);
   useEffect(() => {
     const visible = () => {
       if (!selected && document.visibilityState === "visible") refresh();
@@ -116,7 +154,15 @@ export default function ProfileOrders({ userId }: { userId: string }) {
             <NavigationIcon name="refresh" />
           </button>
         </div>
-        {selected && <p>{selected}</p>}
+      {!selected && (
+        <p className="order-count" role="status">
+          {counts
+            ? `${counts[group]} ${group === "active" ? (counts[group] === 1 ? "active order" : "active orders") : group === "returns" ? (counts[group] === 1 ? "order with returns" : "orders with returns") : counts[group] === 1 ? "order" : "orders"}`
+            : countFailed
+              ? "Order count unavailable"
+              : "Counting orders…"}
+        </p>
+      )}
       </div>
       {selected && (
         <div className="order-detail-view">
@@ -135,37 +181,24 @@ export default function ProfileOrders({ userId }: { userId: string }) {
           value={group}
           onChange={(value) => setGroup(value as OrderGroup)}
           tabs={[
-            {
-              key: "active",
-              label: "Active orders",
-              content: group === "active" && (
-                <OrderFeed
-                  key={`active:${revision}`}
-                  group="active"
-                  userId={userId}
-                  open={(order) => {
-                    setSelectedStatus(order.status);
-                    setSelected(order.reference);
-                  }}
-                />
-              ),
-            },
-            {
-              key: "past",
-              label: "Order history",
-              content: group === "past" && (
-                <OrderFeed
-                  key={`past:${revision}`}
-                  group="past"
-                  userId={userId}
-                  open={(order) => {
-                    setSelectedStatus(order.status);
-                    setSelected(order.reference);
-                  }}
-                />
-              ),
-            },
-          ]}
+            { key: "active", label: "Active orders" },
+            { key: "past", label: "Order history" },
+            { key: "returns", label: "Returns" },
+          ].map((view) => ({
+            ...view,
+            content: group === view.key && (
+              <OrderFeed
+                key={`${view.key}:${revision}`}
+                group={group}
+                userId={userId}
+                onUpdated={updateCounts}
+                open={(order) => {
+                  setSelectedStatus(order.status);
+                  setSelected(order.reference);
+                }}
+              />
+            ),
+          }))}
         />
       </div>
     </section>
@@ -175,10 +208,12 @@ export default function ProfileOrders({ userId }: { userId: string }) {
 function OrderFeed({
   group,
   userId,
+  onUpdated,
   open,
 }: {
   group: OrderGroup;
   userId: string;
+  onUpdated: () => void;
   open: (order: OrderCard) => void;
 }) {
   const [orders, setOrders] = useState<OrderCard[]>([]);
@@ -219,6 +254,7 @@ function OrderFeed({
                     clearTimeout(timer);
                     timer = setTimeout(() => {
                       if (alive) {
+                        onUpdated();
                         setOrders([]);
                         setPage(1);
                         setRetry((value) => value + 1);
@@ -235,7 +271,7 @@ function OrderFeed({
       clearTimeout(timer);
       stops.forEach((stop) => stop());
     };
-  }, [orders, group, userId]);
+  }, [orders, group, userId, onUpdated]);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -317,17 +353,28 @@ function OrderFeed({
         orders.length === 0 &&
         (nextPage !== null ? (
           <p className="order-loading">
-            No {group === "active" ? "active" : "past"} orders in these results.
-            Load more to look further back.
+            No{" "}
+            {group === "returns"
+              ? "returns"
+              : `${group === "active" ? "active" : "past"} orders`}{" "}
+            in these results. Load more to look further back.
           </p>
         ) : (
           <CustomerEmptyState
-            icon="history"
-            title={group === "active" ? "No active orders" : "No past orders"}
+            icon={group === "returns" ? "returns" : "history"}
+            title={
+              group === "returns"
+                ? "No returns"
+                : group === "active"
+                  ? "No active orders"
+                  : "No past orders"
+            }
             message={
-              group === "active"
-                ? "Your active orders will appear here. Completed orders can be found in Order History."
-                : "Your completed orders will appear here."
+              group === "returns"
+                ? "You haven't returned any items yet. Returns processed by the retailer will appear here."
+                : group === "active"
+                  ? "Your active orders will appear here. Completed orders can be found in Order History."
+                  : "Your completed orders will appear here."
             }
           />
         ))}
@@ -386,6 +433,7 @@ function OrderSummary({
   const paid = ["PAID", "REFUNDED", "PARTIALLY_REFUNDED"].includes(
     order.paymentStatus,
   );
+  const paymentMethod = paymentMethodLabel(order.paymentMethod);
   const paymentLabel = paid
     ? "Paid"
     : order.paymentStatus === "AUTHORIZED"
@@ -396,11 +444,14 @@ function OrderSummary({
       <header className="order-summary-header">
         <div>
           <h3 ref={heading} tabIndex={-1}>
-            {order.store}
+            Order #{order.reference}
           </h3>
-          <p>{orderDate(order.createdAt)}</p>
+          <p className="order-summary-meta">
+            <span>{order.store}</span>
+            <Status order={order} />
+            <span>{orderDate(order.createdAt)}</span>
+          </p>
         </div>
-        <Status order={order} />
       </header>
       {isActive && delivery && (
         <OrderTracking
@@ -417,6 +468,22 @@ function OrderSummary({
       )}
       <details className="order-receipt" open={!isActive}>
         <summary hidden={!isActive}>Order details and payment</summary>
+        <div className="order-delivery-details">
+          <section>
+            <h3>
+              {["DELIVERED", "COMPLETED"].includes(order.status)
+                ? "Delivered to"
+                : "Delivery address"}
+            </h3>
+            <p>{order.address || "Address unavailable"}</p>
+          </section>
+          <section>
+            <h3>Delivery note</h3>
+            <p className="order-instructions">
+              {order.instructions || "No delivery instructions"}
+            </p>
+          </section>
+        </div>
         <div className="order-summary-grid">
           <div>
             <section className="order-summary-section">
@@ -455,13 +522,6 @@ function OrderSummary({
                 })}
               </ul>
             </section>
-            <section className="order-summary-section">
-              <h3>Delivery address</h3>
-              <p>{order.address || "Address unavailable"}</p>
-              {order.instructions && (
-                <p className="order-instructions">{order.instructions}</p>
-              )}
-            </section>
           </div>
           <section className="order-summary-section order-payment">
             <h3>Summary</h3>
@@ -493,13 +553,7 @@ function OrderSummary({
               <div>
                 <dt>
                   {paymentLabel}
-                  {paid &&
-                  order.paymentMethod &&
-                  !["others", "unknown"].includes(
-                    order.paymentMethod.toLowerCase(),
-                  )
-                    ? ` with ${order.paymentMethod}`
-                    : ""}
+                  {paid && paymentMethod ? ` with ${paymentMethod}` : ""}
                 </dt>
                 <dd>{orderMoney(order.total)}</dd>
               </div>
@@ -535,6 +589,36 @@ function OrderSummary({
             )}
           </section>
         </div>
+        {!!order.returns?.length && (
+          <section className="order-returns" aria-label="Returns">
+            <h3>Return details</h3>
+            {order.returns.map((returned, index) => (
+              <div className="order-return" key={index}>
+                <strong>{returnStatusLabel(returned.status)}</strong>
+                {returned.createdAt && (
+                  <p>Opened {orderDate(returned.createdAt)}</p>
+                )}
+                {returned.quantity > 0 && (
+                  <p>
+                    {returned.quantity}{" "}
+                    {returned.quantity === 1 ? "item" : "items"} in this return
+                  </p>
+                )}
+                {returned.reasons.length > 0 && (
+                  <p>Reason: {returned.reasons.join(", ")}</p>
+                )}
+                {returned.refunded > 0 && (
+                  <p>
+                    Refunded: <strong>{orderMoney(returned.refunded)}</strong>
+                  </p>
+                )}
+                {returned.note && (
+                  <p className="order-instructions">{returned.note}</p>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
       </details>
     </article>
   );
