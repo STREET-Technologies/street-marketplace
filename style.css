@@ -2632,6 +2632,10 @@ a.area-card,
 .category-scroll[hidden] {
   display: none;
 }
+.category-scroll:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .category-scroll {
   grid-row: 1;
   display: grid;

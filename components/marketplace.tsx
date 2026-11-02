@@ -601,7 +601,8 @@ function CategoryFilter({
       <button
         className="category-scroll category-scroll--previous"
         aria-label="Previous categories"
-        hidden={!edges.overflow || edges.start}
+        hidden={!edges.overflow}
+        disabled={edges.start}
         onClick={() => scroll(-1)}
       >
         <svg
@@ -619,7 +620,8 @@ function CategoryFilter({
       <button
         className="category-scroll category-scroll--next"
         aria-label="More categories"
-        hidden={!edges.overflow || edges.end}
+        hidden={!edges.overflow}
+        disabled={edges.end}
         onClick={() => scroll(1)}
       >
         <svg
