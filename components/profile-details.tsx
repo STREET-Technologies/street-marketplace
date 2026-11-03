@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import AppleSignIn from "./apple-sign-in";
 import type { Customer } from "../lib/contracts";
 import { profilePermissions, type ProfileChanges } from "../lib/profile";
 import { postAccountData } from "../lib/client/session";
@@ -143,6 +144,7 @@ export default function ProfileDetails({
           {busy ? "Saving…" : "Save changes"}
         </button>
       </form>
+      <AppleSignIn intent="link" disabled={busy} onBusy={setBusy} />
     </section>
   );
 }

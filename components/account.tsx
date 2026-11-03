@@ -7,6 +7,7 @@ import ProfileDetails from "./profile-details";
 import ProfileAddresses from "./profile-addresses";
 import ProfileOrders from "./profile-orders";
 import GoogleSignIn from "./google-sign-in";
+import AppleSignIn from "./apple-sign-in";
 import type { Customer } from "../lib/contracts";
 import { currentCustomer, sessionRequest } from "../lib/client/session";
 
@@ -223,6 +224,7 @@ export default function Account() {
             }}
           />
         )}
+        {!sent && <AppleSignIn disabled={busy} onBusy={(value) => { pending.current = value; setBusy(value); }} onSuccess={(customer) => { setUser(customer); setError(""); setCode(""); }} />}
         {sent && (
           <button
             className="text-link"

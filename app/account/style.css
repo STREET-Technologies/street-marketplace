@@ -785,3 +785,11 @@
   font-size: 14px;
   margin: 4px 0 0;
 }
+
+.apple-sign-in { margin-block: 16px 24px; }
+.apple-sign-in-button { width: min(100%, 360px); height: 44px; }
+.apple-sign-in-button[inert] { opacity: 0.6; }
+.apple-sign-in .text-link { min-height: 44px; }
+.apple-sign-in > [role="alert"] { margin-block: 12px; }
+.account-content .apple-link-confirm { display: flex; align-items: center; gap: 10px; margin-block: 12px; font-weight: 400; }
+.account-content .apple-link-confirm input { width: 18px; height: 18px; accent-color: var(--ink); }

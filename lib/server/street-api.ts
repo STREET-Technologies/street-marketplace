@@ -208,6 +208,17 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
           "This checkout could not be started. Resume your existing checkout or contact STREET.",
         );
       }
+      if (path.startsWith("/auth/apple/")) {
+        const failure = await response.json().catch(() => null);
+        const code = failure?.code ?? failure?.error?.code;
+        const messages: Record<string, string> = {
+          APPLE_ACCOUNT_LINK_REQUIRED: "Confirm Apple in Personal details while signed in to your existing STREET account. If you can’t access that account, contact STREET support.",
+          APPLE_IDENTITY_CONFLICT: "This Apple account is already connected to a different STREET account. Contact STREET support if you need help.",
+        };
+        if (response.status === 409 && messages[code]) throw new ApiError(409, messages[code]);
+        if (response.status === 503) throw new ApiError(503, "Apple sign-in is unavailable. Please try again later.");
+        if (response.status === 409) throw new ApiError(409, "Apple could not be connected to this STREET account. Contact STREET support if you need help.");
+      }
       const messages: Record<number, string> = {
         400: "Please check your details and try again.",
         401: "Your session or verification code is no longer valid.",
@@ -319,6 +330,22 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
       ),
     async requestOtp(phone: string) {
       await request("/auth/request-otp", "POST", { phone });
+    },
+    async appleChallenge(intent: "login" | "link", token?: string) {
+      const data = record(await request("/auth/apple/challenge", "POST", { platform: "web", intent }, token));
+      const challengeId = requiredString(data.challengeId), nonce = requiredString(data.nonce);
+      const clientId = requiredString(data.clientId), redirectUri = requiredString(data.redirectUri);
+      if (!UUID_PATTERN.test(challengeId) || !/^[A-Za-z0-9_-]{32,128}$/.test(nonce) || !/^[A-Za-z0-9.-]{3,255}$/.test(clientId) || typeof data.expiresIn !== "number" || !Number.isInteger(data.expiresIn) || data.expiresIn < 1 || data.expiresIn > 300)
+        throw new ApiError(502, "STREET returned an invalid Apple sign-in request.");
+      return { challengeId, nonce, clientId, redirectUri, expiresIn: data.expiresIn };
+    },
+    async appleLogin(proof: { challengeId: string; authorizationCode: string; identityToken: string }) {
+      const data = record(await request("/auth/apple/token", "POST", proof));
+      return { tokens: tokensFrom(data), user: customerFrom(data.user) };
+    },
+    async appleLink(proof: { challengeId: string; authorizationCode: string; identityToken: string }, token: string) {
+      const data = record(await request("/auth/apple/link", "POST", proof, token));
+      if (data.linked !== true) throw new ApiError(502, "Apple connection could not be confirmed.");
     },
     async googleLogin(idToken: string) {
       const data = record(

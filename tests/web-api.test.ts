@@ -42,6 +42,9 @@ function api(overrides: Partial<StreetApi> = {}): StreetApi {
     async deliveryFee() {
       throw new Error("Not used in auth tests");
     },
+    async appleChallenge() { throw new Error("Not used in auth tests"); },
+    async appleLogin() { throw new Error("Not used in auth tests"); },
+    async appleLink() { throw new Error("Not used in auth tests"); },
     async googleLogin() {
       throw new Error("Not used in auth tests");
     },
