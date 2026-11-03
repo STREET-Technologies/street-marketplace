@@ -1,3 +1,4 @@
+import { createAsyncCache } from "../async-cache.ts";
 import { orderPageFrom, orderDetailFrom, orderCountsFrom } from "./orders.ts";
 import { CheckoutConflict, CheckoutNotStarted } from "../checkout.ts";
 import { UUID_PATTERN } from "./api-values.ts";
@@ -153,6 +154,12 @@ async function savedPage(
 
 // Only explicit operations are exposed. No arbitrary URL/path/body forwarding.
 export function createStreetApi(fetcher: typeof fetch = fetch) {
+  // Public, projected outlet metadata only. Never cache tokens, addresses,
+  // product stock, delivery checks or checkout responses on the server.
+  const directory = createAsyncCache<OutletCard[]>({
+    maxEntries: 40,
+    retentionMs: 30_000,
+  });
   async function request(
     path: string,
     method = "GET",
@@ -402,26 +409,35 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
     ): Promise<VendorPage> {
       // Upstream paginates vendors before expanding/filtering outlets. Gather every
       // page before category filtering and pagination so nearest-first is global.
-      const params = new URLSearchParams({ limit: "100" });
-      if (coordinates) {
-        params.set("user_latitude", String(coordinates.latitude));
-        params.set("user_longitude", String(coordinates.longitude));
-      }
-      const outlets = new Map<string, OutletCard>();
-      for (let upstreamPage = 1; ; upstreamPage++) {
-        params.set("page", String(upstreamPage));
-        const result = vendorPageFrom(await request(`/vendors?${params}`));
-        for (const outlet of result.outlets)
-          outlets.set(outlet.vendorId + ":" + outlet.outletId, outlet);
-        if (upstreamPage >= result.totalPages) break;
-        // Fail explicitly rather than return a misleading partial nearby directory.
-        if (upstreamPage >= 20)
-          throw new ApiError(
-            502,
-            "The shop directory is too large to load. Please try again later.",
-          );
-      }
-      const all = [...outlets.values()];
+      const directoryKey = JSON.stringify(
+        coordinates ? [coordinates.latitude, coordinates.longitude] : null,
+      );
+      const all = await directory.read(
+        directoryKey,
+        async () => {
+          const params = new URLSearchParams({ limit: "100" });
+          if (coordinates) {
+            params.set("user_latitude", String(coordinates.latitude));
+            params.set("user_longitude", String(coordinates.longitude));
+          }
+          const outlets = new Map<string, OutletCard>();
+          for (let upstreamPage = 1; ; upstreamPage++) {
+            params.set("page", String(upstreamPage));
+            const result = vendorPageFrom(await request(`/vendors?${params}`));
+            for (const outlet of result.outlets)
+              outlets.set(outlet.vendorId + ":" + outlet.outletId, outlet);
+            if (upstreamPage >= result.totalPages) break;
+            // Fail explicitly rather than return a misleading partial nearby directory.
+            if (upstreamPage >= 20)
+              throw new ApiError(
+                502,
+                "The shop directory is too large to load. Please try again later.",
+              );
+          }
+          return [...outlets.values()];
+        },
+        30_000,
+      );
       const categories = [
         ...new Set(all.flatMap((o) => (o.category ? [o.category] : []))),
       ].sort((a, b) => a.localeCompare(b));

@@ -11,7 +11,16 @@ import {
 import { AddToBag } from "./cart";
 import { CustomerEmptyState } from "./customer-page";
 import { FavouriteButton, useCustomer } from "./customer-context";
-import { readAccountData } from "../lib/client/session";
+import {
+  catalogueCache,
+  catalogueInvalidated,
+  readCatalogue,
+  prefetchProduct,
+  productUrl,
+} from "../lib/client/catalogue";
+import Photo from "./commerce-image";
+import { adjacentGalleryImages, responsiveImage } from "../lib/commerce-images";
+import { canPrefetch, preloadGalleryImage } from "../lib/client/prefetch";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -44,44 +53,48 @@ const money = (amount: number | null) =>
       }).format(amount);
 function useData<T>(url: string) {
   const [revision, refresh] = useState(0);
-  const [state, setState] = useState<{ url: string; data?: T; error?: string }>(
-    { url: "" },
-  );
+  const [state, setState] = useState<{
+    url: string;
+    data?: T;
+    error?: string;
+    refreshing?: boolean;
+  }>({ url: "" });
   useEffect(() => {
-    const controller = new AbortController();
-    setState({ url });
-    const parsed = new URL(url, "https://marketplace.invalid");
-    const load = parsed.searchParams.has("addressId")
-      ? readAccountData<T>(
-          parsed.pathname as "/api/catalogue/vendors" | "/api/catalogue/browse",
-          parsed.searchParams,
-        )
-      : fetch(url, { cache: "no-store", signal: controller.signal }).then(
-          async (response) => {
-            const data = await response.json().catch(() => {
-              throw new Error(
-                "STREET could not load this collection. Please try again.",
-              );
+    let active = true;
+    const load = (force = false) => {
+      const cached = catalogueCache.peek(url) as T | undefined;
+      setState({ url, data: cached, refreshing: true });
+      void readCatalogue<T>(url, force)
+        .then((data) => {
+          if (active) setState({ url, data, refreshing: false });
+        })
+        .catch((error) => {
+          if (active)
+            setState({
+              url,
+              data: cached,
+              refreshing: false,
+              error:
+                error instanceof Error ? error.message : "Please try again.",
             });
-            if (!response.ok)
-              throw new Error(
-                data.error || "STREET could not load this collection.",
-              );
-            return data as T;
-          },
-        );
-    load
-      .then((data) => {
-        if (!controller.signal.aborted) setState({ url, data });
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted)
-          setState({
-            url,
-            error: error instanceof Error ? error.message : "Please try again.",
-          });
-      });
-    return () => controller.abort();
+        });
+    };
+    load(revision > 0);
+    const visible = () => {
+      if (!document.hidden) load(true);
+    };
+    const invalidated = () => {
+      active = false;
+      setState({ url });
+      refresh((v) => v + 1);
+    };
+    document.addEventListener("visibilitychange", visible);
+    window.addEventListener(catalogueInvalidated, invalidated);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", visible);
+      window.removeEventListener(catalogueInvalidated, invalidated);
+    };
   }, [url, revision]);
   return {
     ...(state.url === url ? state : { url }),
@@ -100,14 +113,6 @@ function LoadMessage({ error, retry }: { error?: string; retry: () => void }) {
     <p className="catalogue-message" role="status">
       Loading from STREET…
     </p>
-  );
-}
-function Photo({ src, alt = "" }: { src: string | null; alt?: string }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  return src && failed !== src ? (
-    <img src={src} alt={alt} loading="lazy" onError={() => setFailed(src)} />
-  ) : (
-    <span className="image-unavailable">Image unavailable</span>
   );
 }
 function Pagination({
@@ -210,6 +215,7 @@ function Shops({
     <div className={preview ? undefined : "browse-layout"}>
       {filters}
       <div className="browse-results">
+        {state.error && <LoadMessage {...state} />}
         {!preview && (
           <div className="results-bar">
             <span>
@@ -242,10 +248,10 @@ function Shops({
                     href={href(destination)}
                     aria-label={`Explore ${outlet.name}${outlet.outletName ? `, ${outlet.outletName}` : ""}`}
                   >
-                    <Photo src={outlet.image} />
+                    <Photo src={outlet.image} size="shop" />
                   </Link>
                 ) : (
-                  <Photo src={outlet.image} />
+                  <Photo src={outlet.image} size="shop" />
                 )}
                 <div>
                   <div className="shop-heading">
@@ -367,7 +373,10 @@ function ProductGrid({
   products: ProductCard[];
   context: Params;
 }) {
-  const [opened, setOpened] = useState<Params | null>(null);
+  const [opened, setOpened] = useState<{
+    params: Params;
+    preview: ProductCard;
+  } | null>(null);
   return (
     <div className="product-grid">
       {products.map((p, i) => {
@@ -391,11 +400,20 @@ function ProductGrid({
           )
             return;
           event.preventDefault();
-          setOpened(productParams);
+          setOpened({ params: productParams, preview: p });
         };
         const ready = p.id && p.locationGid;
         return (
-          <article className="product-card" key={`${p.id}-${p.outletId}-${i}`}>
+          <article
+            className="product-card"
+            key={`${p.id}-${p.outletId}-${i}`}
+            onPointerEnter={() => {
+              if (ready) prefetchProduct(productParams);
+            }}
+            onFocus={() => {
+              if (ready) prefetchProduct(productParams);
+            }}
+          >
             <div className="product-image">
               {ready ? (
                 <Link
@@ -450,7 +468,11 @@ function ProductGrid({
         );
       })}
       {opened && (
-        <ProductOverlay params={opened} onClose={() => setOpened(null)} />
+        <ProductOverlay
+          params={opened.params}
+          preview={opened.preview}
+          onClose={() => setOpened(null)}
+        />
       )}
     </div>
   );
@@ -646,7 +668,7 @@ function ShopLogo({ src }: { src: string | null }) {
   return (
     <img
       className="shop-logo"
-      src={src}
+      {...responsiveImage(src, "logo")}
       alt=""
       onError={() => setFailed(src)}
     />
@@ -735,6 +757,7 @@ function Products({
             </CustomerEmptyState>
           ) : (
             <>
+              {state.error && <LoadMessage {...state} />}
               <div className="results-bar">
                 <span>{state.data.total} products</span>
               </div>
@@ -782,9 +805,11 @@ function Products({
 }
 function ProductOverlay({
   params,
+  preview,
   onClose,
 }: {
   params: Params;
+  preview: ProductCard;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -839,7 +864,12 @@ function ProductOverlay({
           <path d="m6 6 12 12M6 18 18 6" />
         </svg>
       </button>
-      <Product params={params} overlay onShopNavigate={onClose} />
+      <Product
+        params={params}
+        preview={preview}
+        overlay
+        onShopNavigate={onClose}
+      />
     </dialog>
   );
 }
@@ -852,6 +882,28 @@ function ProductGallery({
 }) {
   const [index, select] = useState(0);
   const gallery = useRef<HTMLDivElement>(null);
+  const warmed = useRef(new Map<string, HTMLImageElement>());
+  const warm = (src: string) => {
+    if (!canPrefetch() || warmed.current.has(src)) return;
+    warmed.current.set(src, preloadGalleryImage(src));
+    // Keep nearby decoded images alive without retaining an unbounded gallery.
+    if (warmed.current.size > 8)
+      warmed.current.delete(warmed.current.keys().next().value!);
+  };
+  useEffect(() => {
+    warmed.current.clear();
+    return () => warmed.current.clear();
+  }, [images]);
+  useEffect(() => {
+    const current =
+      gallery.current?.querySelector<HTMLImageElement>(".gallery-stage img");
+    if (!current) return;
+    const preload = () => adjacentGalleryImages(images, index).forEach(warm);
+    // Prioritise the visible image; background downloads start once it is ready.
+    if (current.complete && current.naturalWidth > 0) preload();
+    else current.addEventListener("load", preload, { once: true });
+    return () => current.removeEventListener("load", preload);
+  }, [images, index]);
   const multiple = images.length > 1;
   const previewLimit = 5;
   const extraImages = Math.max(0, images.length - previewLimit);
@@ -898,6 +950,8 @@ function ProductGallery({
       <div className="gallery-stage">
         <Photo
           src={images[index] ?? null}
+          size="gallery"
+          eager
           alt={`${title}${multiple ? ` — image ${index + 1} of ${images.length}` : ""}`}
         />
         {multiple && (
@@ -958,8 +1012,10 @@ function ProductGallery({
                 aria-label={`Show image ${i + 1}`}
                 aria-pressed={index === i}
                 onClick={() => select(i)}
+                onPointerEnter={() => warm(src)}
+                onFocus={() => warm(src)}
               >
-                <Photo src={src} />
+                <Photo src={src} size="thumbnail" />
               </button>
             ))}
             {extraImages > 0 && (
@@ -968,6 +1024,8 @@ function ProductGallery({
                 aria-label={`${extraImages} more images. Show image ${previewLimit + 1}`}
                 aria-pressed={index >= previewLimit}
                 onClick={() => select(previewLimit)}
+                onPointerEnter={() => warm(images[previewLimit])}
+                onFocus={() => warm(images[previewLimit])}
               >
                 +{extraImages}
               </button>
@@ -980,20 +1038,17 @@ function ProductGallery({
 }
 function Product({
   params,
+  preview,
   overlay = false,
   onShopNavigate,
 }: {
   params: Params;
+  preview?: ProductCard;
   overlay?: boolean;
   onShopNavigate?: () => void;
 }) {
-  const query = new URLSearchParams({
-    kind: "product",
-    vendorId: params.vendorId || "",
-    productId: params.productId || "",
-    locationGid: params.locationGid || "",
-  });
-  const state = useData<ProductDetail>(`/api/catalogue/browse?${query}`);
+  const query = productUrl(params);
+  const state = useData<ProductDetail>(query);
   const [choice, setChoice] = useState<{
     key: string;
     values: OptionSelection;
@@ -1004,7 +1059,7 @@ function Product({
     () => (product ? buildOptionModel(product) : null),
     [product],
   );
-  const choiceKey = query.toString();
+  const choiceKey = query;
   const values = model
     ? {
         ...defaultOptions(model),
@@ -1027,7 +1082,22 @@ function Product({
         </Link>
       )}
       {!product ? (
-        <LoadMessage {...state} />
+        preview ? (
+          <div className="product-detail" aria-busy={!state.error}>
+            <ProductGallery
+              images={preview.image ? [preview.image] : []}
+              title={preview.title}
+            />
+            <div className="detail-copy">
+              <div className="product-title-row">
+                <h2>{preview.title}</h2>
+              </div>
+              <LoadMessage {...state} />
+            </div>
+          </div>
+        ) : (
+          <LoadMessage {...state} />
+        )
       ) : (
         <div className="product-detail">
           <ProductGallery images={product.images} title={product.title} />
@@ -1061,29 +1131,35 @@ function Product({
             {product.description && (
               <p className="product-description">{product.description}</p>
             )}
-            <ProductOptions
-              product={product}
-              model={model}
-              values={values}
-              selected={selected}
-              onOptions={(values) =>
-                setChoice({ key: choiceKey, values, variantId: "" })
-              }
-              onVariant={(variantId) =>
-                setChoice({ key: choiceKey, values: {}, variantId })
-              }
-            />
-            <StockStatus inventory={selected?.inventory} />
-            <AddToBag
-              outlet={{
-                vendorId: params.vendorId,
-                outletId: params.outletId,
-                shopName: params.shop || "Shop",
-                branch: params.branch || "",
-              }}
-              product={product}
-              variant={selected}
-            />
+            {state.refreshing || state.error ? (
+              <LoadMessage {...state} />
+            ) : (
+              <>
+                <ProductOptions
+                  product={product}
+                  model={model}
+                  values={values}
+                  selected={selected}
+                  onOptions={(values) =>
+                    setChoice({ key: choiceKey, values, variantId: "" })
+                  }
+                  onVariant={(variantId) =>
+                    setChoice({ key: choiceKey, values: {}, variantId })
+                  }
+                />
+                <StockStatus inventory={selected?.inventory} />
+                <AddToBag
+                  outlet={{
+                    vendorId: params.vendorId,
+                    outletId: params.outletId,
+                    shopName: params.shop || "Shop",
+                    branch: params.branch || "",
+                  }}
+                  product={product}
+                  variant={selected}
+                />
+              </>
+            )}
           </div>
         </div>
       )}

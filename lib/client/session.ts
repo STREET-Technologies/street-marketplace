@@ -116,6 +116,8 @@ export function postAccountData<T>(
         response.status,
         data.error || "STREET could not complete this request.",
       );
+    if (path === "/api/addresses/change" && typeof window !== "undefined")
+      window.dispatchEvent(new Event("street:addresses-changed"));
     return data as T;
   });
 }

@@ -1,4 +1,5 @@
 "use client";
+import { setCatalogueOwner } from "../lib/client/catalogue";
 import NavigationIcon from "./navigation-icon";
 import Link from "next/link";
 import {
@@ -104,6 +105,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
           )
         : undefined;
       if (version !== epoch.current) return;
+      setCatalogueOwner(data?.userId ?? null);
       if (userId.current !== (data?.userId ?? null)) setAddressId(null);
       userId.current = data?.userId ?? null;
       if (!data) setAddressId(null);
@@ -119,6 +121,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
       if (error instanceof SessionError && error.status === 401) {
         setAddressId(null);
         userId.current = null;
+        setCatalogueOwner(null);
         startTransition(() => setState({ status: "guest" }));
       } else
         startTransition(() =>
