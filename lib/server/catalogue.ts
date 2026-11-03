@@ -8,6 +8,8 @@ import {
 } from "./api-values.ts";
 import type { ProductCard, ProductDetail, ProductPage } from "../contracts.ts";
 
+const PRODUCTS_PER_PAGE = 20;
+
 export type CatalogueQuery = {
   kind: "products" | "product" | "search";
   page: number;
@@ -157,7 +159,7 @@ export function productPageFrom(
       : [],
     page: query.page,
     total: Number(meta.total),
-    totalPages: Math.ceil(Number(meta.total) / 12),
+    totalPages: Math.ceil(Number(meta.total) / PRODUCTS_PER_PAGE),
     requiresLocation: data.requiresLocation === true,
     outOfDeliveryArea: data.outOfDeliveryArea === true,
   };
@@ -205,7 +207,7 @@ export function cataloguePath(query: CatalogueQuery): string {
   } else params.set("locationGid", query.locationGid!);
   if (query.kind !== "product") {
     params.set("page", String(query.page));
-    params.set("limit", "12");
+    params.set("limit", String(PRODUCTS_PER_PAGE));
   }
   if (query.kind === "products") {
     params.set("includeFacets", "true");

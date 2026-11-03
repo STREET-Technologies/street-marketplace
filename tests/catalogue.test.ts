@@ -68,7 +68,7 @@ test("catalogue projection excludes vendor secrets, rejects malformed data and r
     },
     catalogueQuery(params()),
   );
-  assert.equal(result.totalPages, 3);
+  assert.equal(result.totalPages, 2);
   assert.equal(result.products[0].price, 159);
   assert.equal(result.products[0].locationGid, locationGid);
   assert.equal(result.products[1].price, null);
@@ -256,4 +256,19 @@ test("shop categories use outlet-wide backend facets and filter before paginatio
       }),
     ),
   );
+});
+
+test("catalogue and search request 20 products and calculate matching page boundaries", () => {
+  for (const query of [catalogueQuery(params({page:'2'})), catalogueQuery(new URLSearchParams({kind:'search',query:'coat',page:'2'}))]) {
+    const url = new URL(cataloguePath(query), 'https://staging-api.street.london');
+    assert.equal(url.searchParams.get('limit'), '20');
+    assert.equal(url.searchParams.get('page'), '2');
+    for (const [total, pages] of [[0,0],[20,1],[21,2],[40,2],[41,3],[501,26]]) {
+      const result = productPageFrom({data:[],meta:{total}},query);
+      assert.equal(result.totalPages,pages);
+      assert.equal(result.page,2);
+    }
+  }
+  const detail = new URL(cataloguePath(catalogueQuery(params({kind:'product',productId}))), 'https://staging-api.street.london');
+  assert.equal(detail.searchParams.has('limit'),false);
 });

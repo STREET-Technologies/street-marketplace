@@ -162,7 +162,7 @@ function apiFixture(
           options.listed === false
             ? []
             : [{ id: productId, title: "Coat", vendor: "Shop", price: 179 }],
-        meta: { total: options.pages ? options.pages * 12 : 1 },
+        meta: { total: options.pages ? options.pages * Number(u.searchParams.get("limit")) : 1 },
       });
     if (options.detailFail) return new Response("", { status: 503 });
     return data({

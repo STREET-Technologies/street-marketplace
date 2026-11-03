@@ -1,5 +1,6 @@
 "use client";
 import { productPriceSummary } from "../lib/product-presentation";
+import { resultsScrollTarget } from "../lib/browse-navigation";
 import StockStatus from "./stock-status";
 import { ProductOptions } from "./product-options";
 import {
@@ -193,6 +194,7 @@ function Shops({
       categories={categories ?? []}
       filterKey="category"
       params={params}
+      resultsReady={!!state.data || !!state.error}
     />
   );
   if (!state.data)
@@ -481,12 +483,42 @@ function CategoryFilter({
   categories,
   filterKey = "productType",
   params,
+  resultsReady,
 }: {
   categories: string[];
   filterKey?: "productType" | "category";
   params: Params;
+  resultsReady: boolean;
 }) {
   const row = useRef<HTMLElement>(null);
+  const pendingCategory = useRef<string | null>(null);
+  const revealResults = () => {
+    if (!matchMedia("(min-width: 1100px)").matches) return;
+    const results = row.current
+      ?.closest(".browse-layout")
+      ?.querySelector(".browse-results");
+    const header = document.querySelector(".marketplace-header");
+    if (!results || !header) return;
+    const top = resultsScrollTarget(
+      results.getBoundingClientRect().top,
+      header.getBoundingClientRect().bottom,
+      innerHeight,
+      scrollY,
+    );
+    if (top !== null)
+      window.scrollTo({
+        top,
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+  };
+  const selectedCategory = params[filterKey] || "";
+  useEffect(() => {
+    if (!resultsReady || pendingCategory.current !== selectedCategory) return;
+    pendingCategory.current = null;
+    revealResults();
+  }, [selectedCategory, resultsReady]);
   const [edges, setEdges] = useState({
     overflow: false,
     start: true,
@@ -597,6 +629,11 @@ function CategoryFilter({
               key={category.value}
               href={href(next)}
               scroll={false}
+              onNavigate={() => {
+                if (category.value === selectedCategory && resultsReady)
+                  revealResults();
+                else pendingCategory.current = category.value;
+              }}
               aria-current={
                 (params[filterKey] || "") === category.value
                   ? "true"
@@ -730,6 +767,7 @@ function Products({
           <CategoryFilter
             categories={(facets ?? []).map((f) => f.productType)}
             params={params}
+            resultsReady={!!state.data || !!state.error}
           />
         )}
         <div className="browse-results">
