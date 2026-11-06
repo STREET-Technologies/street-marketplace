@@ -42,6 +42,9 @@ export function customerFrom(value: unknown): Customer {
     email: optionalString(user.email),
     phone: optionalString(user.phone),
     ssoProvider: optionalString(user.ssoProvider),
+    ...(typeof user.appleConnected === "boolean"
+      ? { appleConnected: user.appleConnected }
+      : {}),
   };
 }
 

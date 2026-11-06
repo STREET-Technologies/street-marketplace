@@ -5,6 +5,7 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   ssoProvider?: string | null;
+  appleConnected?: boolean;
 }
 
 export interface OutletCard {

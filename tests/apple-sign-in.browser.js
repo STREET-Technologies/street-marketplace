@@ -12,12 +12,16 @@ async (page) => {
     email: "relay@example.test",
     phone: null,
     ssoProvider: "apple",
+    appleConnected: true,
   };
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/auth/session")
       return route.fulfill({ json: { user: signedIn ? customer : null } });
-    if (path === "/api/customer-context") return route.fulfill({json:{userId:customer.id,addresses:[],favourites:[]}});
+    if (path === "/api/customer-context")
+      return route.fulfill({
+        json: { userId: customer.id, addresses: [], favourites: [] },
+      });
     if (path === "/api/auth/google/start")
       return route.fulfill({ json: { enabled: false } });
     if (path === "/api/auth/apple/start") {
@@ -96,6 +100,20 @@ async (page) => {
     .getByRole("heading", { name: "Personal details", exact: true })
     .waitFor();
   await page
+    .getByRole("status")
+    .filter({ hasText: "Apple connected" })
+    .waitFor();
+  if (
+    await page
+      .getByRole("checkbox", { name: "Connect Apple to this STREET account" })
+      .count()
+  )
+    throw Error("Connected account offered Apple linking");
+  // A different, unconnected account must retain the explicit linking flow.
+  customer.appleConnected = false;
+  customer.ssoProvider = "google";
+  await page.reload();
+  await page
     .getByRole("checkbox", { name: "Connect Apple to this STREET account" })
     .waitFor();
   if (!(await page.locator("#appleid-signin").evaluate((el) => el.inert)))
@@ -106,7 +124,7 @@ async (page) => {
   await button.click();
   await page
     .getByRole("status")
-    .filter({ hasText: "Apple is connected" })
+    .filter({ hasText: "Apple connected" })
     .waitFor();
   if (links !== 1 || finishes !== 2)
     throw Error(
@@ -120,4 +138,4 @@ async (page) => {
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await button.waitFor();
   return { passed: true, starts, finishes, links };
-}
+};

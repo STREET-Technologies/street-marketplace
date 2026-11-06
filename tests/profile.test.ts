@@ -367,3 +367,23 @@ test("address choices reject arbitrary new names and non-boolean defaults before
     );
   }
 });
+
+test("Apple connection projection is independent of login provider and preserves unknown status", async () => {
+  const { customerFrom } = await import("../lib/server/street-api.ts");
+  assert.equal(
+    customerFrom({ ...user, ssoProvider: "google", appleConnected: true })
+      .appleConnected,
+    true,
+  );
+  assert.equal(
+    customerFrom({ ...user, ssoProvider: "apple", appleConnected: false })
+      .appleConnected,
+    false,
+  );
+  for (const appleConnected of [undefined, null, "true", 1]) {
+    assert.equal(
+      customerFrom({ ...user, appleConnected }).appleConnected,
+      undefined,
+    );
+  }
+});

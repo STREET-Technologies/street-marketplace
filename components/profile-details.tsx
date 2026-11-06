@@ -1,9 +1,9 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppleSignIn from "./apple-sign-in";
 import type { Customer } from "../lib/contracts";
 import { profilePermissions, type ProfileChanges } from "../lib/profile";
-import { postAccountData } from "../lib/client/session";
+import { currentCustomer, postAccountData } from "../lib/client/session";
 
 export default function ProfileDetails({
   user,
@@ -22,6 +22,20 @@ export default function ProfileDetails({
   const pending = useRef(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (user.appleConnected !== undefined) return;
+    let active = true;
+    // Login responses can precede the account-level connection projection.
+    // Unknown status must never render a misleading invitation to reconnect.
+    void currentCustomer()
+      .then((current) => {
+        if (active && current?.id === user.id) onSaved(current);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user.id, user.appleConnected, onSaved]);
   const permissions = profilePermissions(user);
   const fields = [
     {
@@ -144,7 +158,19 @@ export default function ProfileDetails({
           {busy ? "Saving…" : "Save changes"}
         </button>
       </form>
-      <AppleSignIn intent="link" disabled={busy} onBusy={setBusy} />
+      {user.appleConnected === true && (
+        <p className="apple-connected" role="status">
+          Apple connected
+        </p>
+      )}
+      {user.appleConnected === false && (
+        <AppleSignIn
+          intent="link"
+          disabled={busy}
+          onBusy={setBusy}
+          onConnected={() => onSaved({ ...user, appleConnected: true })}
+        />
+      )}
     </section>
   );
 }

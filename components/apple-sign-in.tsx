@@ -14,6 +14,7 @@ type Props = {
   disabled: boolean;
   onBusy: (busy: boolean) => void;
   onSuccess?: (user: Customer) => void;
+  onConnected?: () => void;
 };
 export default function AppleSignIn(props: Props) {
   const intent = props.intent ?? "login";
@@ -137,6 +138,7 @@ export default function AppleSignIn(props: Props) {
       if (!alive.current) return;
       if (intent === "link") {
         setState("linked");
+        callbacks.current.onConnected?.();
       } else {
         if (!data.user)
           throw new Error("Apple sign-in couldn’t finish. Please try again.");
@@ -179,6 +181,8 @@ export default function AppleSignIn(props: Props) {
         </>
       )}
       <div
+        className="apple-sign-in-control"
+        hidden={state === "error"}
         onClickCapture={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -202,9 +206,15 @@ export default function AppleSignIn(props: Props) {
           id="appleid-signin"
           className="apple-sign-in-button"
           data-color="white"
-          data-border="true"
+          data-border="false"
           data-type="continue"
-          data-border-radius="6"
+          data-border-radius="4"
+          data-mode="left-align"
+          data-width="100%"
+          data-height="32"
+          data-logo-size="small"
+          data-logo-position="10"
+          data-label-position="36"
           hidden={state === "error"}
           inert={
             props.disabled ||
