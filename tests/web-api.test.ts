@@ -4,6 +4,7 @@ import { NextRequest } from "next/server.js";
 import {
   handleAuth,
   handleVendors,
+  requireSameOrigin,
   sessionCookies,
 } from "../lib/server/web-api.ts";
 import { ApiError, type StreetApi } from "../lib/server/street-api.ts";
@@ -114,6 +115,28 @@ function request(
     body: action === "session" ? undefined : JSON.stringify(body),
   });
 }
+
+test("configured origin rejects other hosts even when request URL and forwarded host agree", () => {
+  const previous = process.env.MARKETPLACE_ORIGIN;
+  const canonical = "https://marketplace-staging.street.london";
+  try {
+    process.env.MARKETPLACE_ORIGIN = canonical;
+    assert.doesNotThrow(() =>
+      requireSameOrigin(new Request(`${canonical}/api/auth/request-otp`, {
+        headers: { origin: canonical, "content-type": "application/json" },
+      })),
+    );
+    assert.throws(
+      () => requireSameOrigin(request("request-otp", {}, {
+          "x-forwarded-host": new URL(canonical).host,
+        })),
+      (error: unknown) => error instanceof ApiError && error.status === 403,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.MARKETPLACE_ORIGIN;
+    else process.env.MARKETPLACE_ORIGIN = previous;
+  }
+});
 
 test("verify OTP sets host-only HttpOnly cookies and returns no credentials", async () => {
   let called: unknown;

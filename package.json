@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev --hostname localhost --port 4319",
     "start": "next start --hostname localhost --port 4319",
-    "test": "node --test model.test.mjs tests/*.test.ts",
+    "test": "node --import ./tests/setup-env.mjs --test model.test.mjs tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "npm test && next build"
   },
