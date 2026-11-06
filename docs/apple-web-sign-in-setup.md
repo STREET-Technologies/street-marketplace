@@ -1,6 +1,8 @@
 # Apple web sign-in: staging setup and acceptance
 
-Implementation is staged locally across marketplace, backend and customer mobile branches. Database foundation is deployed on backend v5.50.4; the new authentication implementation is not deployed or activated yet.
+Release preparation updated 2026-11-06. Backend v5.50.5 is tested, tagged and pushed, but staging remains on database foundation v5.50.4 until the updated iPhone app is installed. Signing and encryption configuration is installed and validated on staging with Apple authentication disabled. Marketplace v0.1.12 includes the web flow and isolated build-test configuration; keep its Apple flag disabled until backend cutover. No real Apple account login has been verified yet.
+
+Mobile tag `staging-1.0.11+125` is pushed on `feat/tt-531-apple-account-link`. Run Codemagic manually with the `ios-firebase` workflow and this tag. Both CI environment generators enable the staging pilot and explicitly disable it for production. Install over the existing staging app without uninstalling or signing out, then perform the coordinated backend and web activation below.
 
 ## Apple Developer configuration
 
@@ -16,7 +18,7 @@ Use a website **Services ID** associated with the existing primary App ID/group 
 Backend staging `.env` (see its `.env.template`):
 
 - `APPLE_AUTH_ENABLED=true` only at coordinated staging cutover.
-- `APPLE_WEB_CLIENT_ID=<website Services ID>`.
+- `APPLE_WEB_CLIENT_ID=london.street.marketplace.staging`.
 - `APPLE_WEB_REDIRECT_URI=https://marketplace-staging.street.london/api/auth/apple/callback`.
 - `APPLE_NATIVE_CLIENT_ID=com.streetlondon.app` after checking existing native App ID/group.
 - `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`: server-only signing configuration.
