@@ -214,6 +214,11 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
       if (path.startsWith("/auth/apple/")) {
         const failure = await response.json().catch(() => null);
         const code = failure?.code ?? failure?.error?.code;
+        if (response.status === 400 && code === "APPLE_VERIFIED_EMAIL_REQUIRED")
+          throw new ApiError(
+            400,
+            "Apple did not provide a verified email. Try another sign-in method.",
+          );
         const messages: Record<string, string> = {
           APPLE_ACCOUNT_LINK_REQUIRED: "Confirm Apple in Personal details while signed in to your existing STREET account. If you can’t access that account, contact STREET support.",
           APPLE_IDENTITY_CONFLICT: "This Apple account is already connected to a different STREET account. Contact STREET support if you need help.",
@@ -342,7 +347,13 @@ export function createStreetApi(fetcher: typeof fetch = fetch) {
         throw new ApiError(502, "STREET returned an invalid Apple sign-in request.");
       return { challengeId, nonce, clientId, redirectUri, expiresIn: data.expiresIn };
     },
-    async appleLogin(proof: { challengeId: string; authorizationCode: string; identityToken: string }) {
+    async appleLogin(proof: {
+      challengeId: string;
+      authorizationCode: string;
+      identityToken: string;
+      givenName?: string;
+      familyName?: string;
+    }) {
       const data = record(await request("/auth/apple/token", "POST", proof));
       return { tokens: tokensFrom(data), user: customerFrom(data.user) };
     },

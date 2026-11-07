@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { appleProof } from "../lib/client/apple.ts";
 import { NextRequest } from "next/server.js";
 import { createStreetApi } from "../lib/server/street-api.ts";
 import {
@@ -15,7 +16,7 @@ const request = (body: unknown, cookie = "", from = origin) =>
     headers: { origin: from, "content-type": "application/json", cookie },
     body: JSON.stringify(body),
   });
-function upstream() {
+function upstream(user = { id: "existing-user", ssoProvider: "apple" }) {
   const calls: { path: string; body: unknown; authorization: string | null }[] =
     [];
   const api = createStreetApi(async (url, init) => {
@@ -39,7 +40,7 @@ function upstream() {
           : {
               accessToken: "street-access",
               refreshToken: "street-refresh",
-              user: { id: "existing-user", ssoProvider: "apple" },
+              user,
             },
     });
   });
@@ -257,4 +258,124 @@ test("unbound Apple identity gives confirmation guidance rather than generic dup
   assert.equal(result.status, 409);
   assert.match((await result.json()).error, /existing STREET account/);
   assert.equal(result.cookies.get("street_staging_access"), undefined);
+});
+
+test("first Apple authorization forwards optional profile names without client email ownership", () => {
+  const result = {
+    authorization: { code: "code", id_token: "token", state: "state" },
+    user: {
+      name: { firstName: "Ada", lastName: "Lovelace" },
+      email: "untrusted@example.test",
+    },
+  };
+  assert.deepEqual(appleProof(result), {
+    authorizationCode: "code",
+    identityToken: "token",
+    state: "state",
+    givenName: "Ada",
+    familyName: "Lovelace",
+  });
+  const returning = { authorization: result.authorization };
+  assert.deepEqual(appleProof(returning), {
+    authorizationCode: "code",
+    identityToken: "token",
+    state: "state",
+  });
+  assert.deepEqual(appleProof(result, false), appleProof(returning));
+});
+
+test("new Apple customer receives the ordinary session with optional normalized names", async () => {
+  const { u, data, cookie } = await begin(
+    upstream({ id: "new-canonical-user", ssoProvider: "apple" }),
+  );
+  const result = await handleAppleFinish(
+    request(
+      {
+        ...proof(data.state),
+        givenName: " Ada ",
+        familyName: "Lovelace",
+      },
+      cookie,
+    ),
+    u.api,
+    "login",
+    true,
+  );
+  assert.equal(result.status, 200);
+  assert.equal((await result.json()).user.id, "new-canonical-user");
+  assert.equal(result.cookies.get("street_staging_access")?.httpOnly, true);
+  assert.equal(result.cookies.get(appleChallengeCookie())?.maxAge, 0);
+  assert.deepEqual(u.calls[1].body, {
+    challengeId: data.challengeId,
+    authorizationCode: "apple-code",
+    identityToken: "signed.apple.token",
+    givenName: "Ada",
+    familyName: "Lovelace",
+  });
+});
+
+test("Apple profile names are optional, bounded and never accepted by linking", async () => {
+  for (const names of [
+    { givenName: 123 },
+    { familyName: null },
+    { givenName: "a".repeat(101) },
+    { familyName: {} },
+  ]) {
+    const { u, data, cookie } = await begin();
+    const result = await handleAppleFinish(
+      request({ ...proof(data.state), ...names }, cookie),
+      u.api,
+      "login",
+      true,
+    );
+    assert.equal(result.status, 400);
+    assert.equal(u.calls.length, 1);
+    assert.equal(result.cookies.get("street_staging_access"), undefined);
+  }
+  const { u, data, cookie } = await begin();
+  const result = await handleAppleFinish(
+    request({ ...proof(data.state), givenName: "  " }, cookie),
+    u.api,
+    "login",
+    true,
+  );
+  assert.equal(result.status, 200);
+  assert.equal("givenName" in (u.calls[1].body as object), false);
+
+  const session = "street_staging_access=current-access";
+  const link = await begin(upstream(), "link", session);
+  const linked = await handleAppleFinish(
+    request(
+      { ...proof(link.data.state), givenName: "Ada" },
+      `${link.cookie}; ${session}`,
+    ),
+    link.u.api,
+    "link",
+    true,
+  );
+  assert.equal(linked.status, 400);
+  assert.equal(link.u.calls.length, 1);
+});
+
+test("Apple signup without verified email gives a safe alternative sign-in message", async () => {
+  const { data, cookie } = await begin();
+  const api = createStreetApi(async () =>
+    Response.json(
+      { code: "APPLE_VERIFIED_EMAIL_REQUIRED", message: "provider-secret" },
+      { status: 400 },
+    ),
+  );
+  const result = await handleAppleFinish(
+    request(proof(data.state), cookie),
+    api,
+    "login",
+    true,
+  );
+  assert.equal(result.status, 400);
+  assert.deepEqual(await result.json(), {
+    error:
+      "Apple did not provide a verified email. Try another sign-in method.",
+  });
+  assert.equal(result.cookies.get("street_staging_access"), undefined);
+  assert.equal(result.cookies.get(appleChallengeCookie())?.maxAge, 0);
 });

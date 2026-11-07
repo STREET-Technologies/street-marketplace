@@ -133,7 +133,7 @@ export default function AppleSignIn(props: Props) {
       if (!alive.current) return;
       const data = await sessionRequest(
         intent === "link" ? "apple/link" : "apple",
-        appleProof(result),
+        appleProof(result, intent === "login"),
       );
       if (!alive.current) return;
       if (intent === "link") {
@@ -182,7 +182,9 @@ export default function AppleSignIn(props: Props) {
       )}
       <div
         className="apple-sign-in-control"
-        data-pending={state === "loading" || state === "busy" ? "true" : undefined}
+        data-pending={
+          state === "loading" || state === "busy" ? "true" : undefined
+        }
         hidden={state === "error"}
         onClickCapture={(e) => {
           e.preventDefault();
@@ -225,7 +227,9 @@ export default function AppleSignIn(props: Props) {
           <span className="apple-sign-in-progress" role="status">
             <span className="apple-sign-in-spinner" aria-hidden="true" />
             {state === "busy"
-              ? intent === "link" ? "Connecting Apple…" : "Signing in…"
+              ? intent === "link"
+                ? "Connecting Apple…"
+                : "Signing in…"
               : "Continue with Apple"}
           </span>
         )}

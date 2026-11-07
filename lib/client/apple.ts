@@ -1,5 +1,6 @@
 export type AppleResult = {
   authorization: { code: string; id_token: string; state: string };
+  user?: { name?: { firstName?: string; lastName?: string } };
 };
 export type AppleIdentity = {
   init: (config: {
@@ -59,7 +60,7 @@ export function appleCancelled(error: unknown) {
     )
   );
 }
-export function appleProof(result: AppleResult) {
+export function appleProof(result: AppleResult, includeProfile = true) {
   const value = result?.authorization;
   if (
     !value ||
@@ -72,5 +73,11 @@ export function appleProof(result: AppleResult) {
     authorizationCode: value.code,
     identityToken: value.id_token,
     state: value.state,
+    ...(includeProfile && result.user?.name?.firstName !== undefined
+      ? { givenName: result.user.name.firstName }
+      : {}),
+    ...(includeProfile && result.user?.name?.lastName !== undefined
+      ? { familyName: result.user.name.lastName }
+      : {}),
   };
 }

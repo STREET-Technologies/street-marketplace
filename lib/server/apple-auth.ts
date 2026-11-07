@@ -115,7 +115,20 @@ export async function handleAppleFinish(
       );
     const token = sessionFor(request, intent);
     const body = await smallJson(request, 12288);
-    fields(body, ["state", "authorizationCode", "identityToken"]);
+    fields(body, [
+      "state",
+      "authorizationCode",
+      "identityToken",
+      ...(intent === "login" ? ["givenName", "familyName"] : []),
+    ]);
+    const profile: { givenName?: string; familyName?: string } = {};
+    for (const key of ["givenName", "familyName"] as const) {
+      if (!(key in body)) continue;
+      if (typeof body[key] !== "string" || body[key].length > 100)
+        throw new ApiError(400, "Please check your name and try again.");
+      const name = body[key].trim();
+      if (name) profile[key] = name;
+    }
     if (
       typeof body.state !== "string" ||
       !/^[A-Za-z0-9_-]{43}$/.test(body.state) ||
@@ -167,7 +180,7 @@ export async function handleAppleFinish(
     }
     // The backend verifies Apple signature/code/nonce and atomically consumes the
     // challenge. Cookie clearing alone is not used as replay protection.
-    const { tokens, user } = await api.appleLogin(proof);
+    const { tokens, user } = await api.appleLogin({ ...proof, ...profile });
     return setChallenge(setSession(json({ user }), tokens), "");
   } catch (error) {
     const response = errorResponse(error);
