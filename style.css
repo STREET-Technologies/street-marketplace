@@ -1825,7 +1825,8 @@ input {
   text-align: left;
 }
 .live-marketplace .shop-card > img,
-.live-marketplace .shop-card > .image-unavailable {
+.live-marketplace .shop-card > .image-unavailable,
+.live-marketplace .shop-card > .skeleton-shop-image {
   width: 100%;
   height: 230px;
   object-fit: cover;
@@ -1850,6 +1851,38 @@ input {
 .catalogue-message {
   padding: 28px 0;
   line-height: 1.6;
+}
+.catalogue-skeleton .results-bar {
+  min-height: 24px;
+  margin: 0 0 20px;
+}
+.skeleton-block {
+  display: block;
+  background: #e6e6e3;
+  animation: catalogue-pulse 1.8s ease-in-out infinite;
+}
+.skeleton-copy {
+  display: grid;
+  gap: 12px;
+  padding-block: 16px;
+}
+.skeleton-line {
+  width: 65%;
+  height: 12px;
+  border-radius: 3px;
+}
+.skeleton-line--short {
+  width: 80px;
+}
+.skeleton-line--title {
+  width: 85%;
+  height: 18px;
+}
+@keyframes catalogue-pulse {
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block { animation: none; }
 }
 .catalogue-pagination {
   display: grid;

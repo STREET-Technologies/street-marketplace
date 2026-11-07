@@ -102,13 +102,56 @@ function useData<T>(url: string) {
     retry: () => refresh((v) => v + 1),
   };
 }
-function LoadMessage({ error, retry }: { error?: string; retry: () => void }) {
+function LoadMessage({
+  error,
+  retry,
+  skeleton,
+  preview = false,
+}: {
+  error?: string;
+  retry: () => void;
+  skeleton?: "shops" | "products";
+  preview?: boolean;
+}) {
   return error ? (
     <div className="catalogue-message" role="alert">
       <p>{error}</p>
       <button className="secondary" onClick={retry}>
         Try again
       </button>
+    </div>
+  ) : skeleton ? (
+    <div className="catalogue-skeleton" role="status">
+      <span className="sr-only">
+        {skeleton === "shops" ? "Loading shops…" : "Loading products…"}
+      </span>
+      <div aria-hidden="true">
+        {!preview && (
+          <div className="results-bar">
+            <span className="skeleton-block skeleton-line skeleton-line--short" />
+          </div>
+        )}
+        <div className={skeleton === "shops" ? "shop-list" : "product-grid"}>
+          {Array.from(
+            { length: skeleton === "shops" ? (preview ? 3 : 6) : 10 },
+            (_, i) => (
+              <div
+                className={skeleton === "shops" ? "shop-card" : "product-card"}
+                key={i}
+              >
+                <span
+                  className={`skeleton-block ${skeleton === "shops" ? "skeleton-shop-image" : "product-image"}`}
+                />
+                <div className="skeleton-copy">
+                  <span className="skeleton-block skeleton-line skeleton-line--short" />
+                  <span className="skeleton-block skeleton-line skeleton-line--title" />
+                  <span className="skeleton-block skeleton-line" />
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+      </div>
     </div>
   ) : (
     <p className="catalogue-message" role="status">
@@ -202,7 +245,7 @@ function Shops({
       <div className={preview ? undefined : "browse-layout"}>
         {filters}
         <div className="browse-results">
-          <LoadMessage {...state} />
+          <LoadMessage {...state} skeleton="shops" preview={preview} />
         </div>
       </div>
     );
@@ -772,7 +815,7 @@ function Products({
         )}
         <div className="browse-results">
           {!state.data ? (
-            <LoadMessage {...state} />
+            <LoadMessage {...state} skeleton="products" />
           ) : state.data.requiresLocation ? (
             <CustomerEmptyState
               icon="location"
