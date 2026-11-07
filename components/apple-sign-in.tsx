@@ -182,6 +182,7 @@ export default function AppleSignIn(props: Props) {
       )}
       <div
         className="apple-sign-in-control"
+        data-pending={state === "loading" || state === "busy" ? "true" : undefined}
         hidden={state === "error"}
         onClickCapture={(e) => {
           e.preventDefault();
@@ -220,13 +221,15 @@ export default function AppleSignIn(props: Props) {
           }
           aria-busy={state === "busy"}
         />
+        {(state === "loading" || state === "busy") && (
+          <span className="apple-sign-in-progress" role="status">
+            <span className="apple-sign-in-spinner" aria-hidden="true" />
+            {state === "busy"
+              ? intent === "link" ? "Connecting Apple…" : "Signing in…"
+              : "Continue with Apple"}
+          </span>
+        )}
       </div>
-      {state === "loading" && <p role="status">Loading Apple sign-in…</p>}
-      {state === "busy" && (
-        <p role="status">
-          {intent === "link" ? "Connecting Apple…" : "Signing in with Apple…"}
-        </p>
-      )}
       {state === "error" && (
         <>
           <p role="alert">{error}</p>
