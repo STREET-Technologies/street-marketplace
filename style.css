@@ -3172,3 +3172,10 @@ a.area-card,
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Checkout uses the existing profile API and the shared form/button palette. */
+.checkout-contact { display: grid; gap: 16px; margin-block: 16px; }
+.checkout-contact h3, .checkout-contact p { margin: 0; }
+.checkout-contact label { display: grid; gap: 8px; text-align: left; }
+.checkout-contact input { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--cream); }
+.checkout-contact small { color: var(--muted); font-size: 13px; }

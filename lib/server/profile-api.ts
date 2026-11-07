@@ -44,8 +44,13 @@ export async function handleProfile(request: NextRequest, api: StreetApi) {
   try {
     const token = accountToken(request);
     const body = await smallJson(request);
-    fields(body, ["firstName", "lastName", "email", "phone"]);
+    fields(body, ["firstName", "lastName", "email", "phone", "expectedUserId"]);
     const user = await api.me(token);
+    if (
+      body.expectedUserId !== undefined &&
+      uuid(body.expectedUserId) !== user.id
+    )
+      throw new ApiError(409, "Your account changed. Reload your bag.");
     const permissions = profilePermissions(user);
     const changes: ProfileChanges = {};
     for (const key of ["firstName", "lastName", "email", "phone"] as const) {

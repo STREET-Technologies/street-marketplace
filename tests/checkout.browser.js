@@ -42,7 +42,7 @@ async (page) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
     if (path === "/api/auth/session")
-      return route.fulfill({ json: { user: { id: currentOwner } } });
+      return route.fulfill({ json: { user: { id: currentOwner, email: "buyer@example.test", phone: "+447700900123" } } });
     if (path === "/api/customer-context")
       return route.fulfill({
         json: { userId: currentOwner, addresses: [address], favourites: [] },

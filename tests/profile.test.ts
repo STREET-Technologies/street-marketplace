@@ -387,3 +387,31 @@ test("Apple connection projection is independent of login provider and preserves
     );
   }
 });
+
+test("checkout profile completion is bound to the expected account", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const writes: unknown[] = [];
+  const api = createStreetApi(async (_url, init) => {
+    const body = init?.body ? JSON.parse(String(init.body)) : {};
+    if (init?.method === "PATCH") writes.push(body);
+    return Response.json({
+      data: { ...user, id, ssoProvider: "apple", ...body },
+    });
+  });
+  const wrong = await handleProfile(
+    request({
+      expectedUserId: "22222222-2222-4222-8222-222222222222",
+      phone: "+447700900123",
+    }),
+    api,
+  );
+  assert.equal(wrong.status, 409);
+  assert.equal(writes.length, 0);
+  const saved = await handleProfile(
+    request({ expectedUserId: id, phone: "+447700900123" }),
+    api,
+  );
+  assert.equal(saved.status, 200);
+  assert.deepEqual(writes, [{ phone: "+447700900123" }]);
+  assert.equal((await saved.json()).user.id, id);
+});

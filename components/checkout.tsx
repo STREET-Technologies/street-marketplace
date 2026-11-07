@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { cartIntent } from "../lib/cart";
-import type { CartDraft } from "../lib/contracts";
+import type { CartDraft, Customer } from "../lib/contracts";
 import {
   CheckoutConflict,
   canReplaceCheckout,
@@ -15,6 +15,7 @@ import {
   type SavedCheckout,
 } from "../lib/checkout";
 import { requestCheckout } from "../lib/client/checkout";
+import { currentCustomer, postAccountData } from "../lib/client/session";
 export default function Checkout({
   owner,
   cart,
@@ -33,6 +34,11 @@ export default function Checkout({
   const [saved, setSaved] = useState<SavedCheckout | null>(null);
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [error, setError] = useState("");
+  const [contact, setContact] = useState<{
+    owner: string;
+    email?: string;
+    phone?: string;
+  } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const latest = useRef({ owner, complete, addressId });
@@ -40,6 +46,7 @@ export default function Checkout({
   const running = useRef(false);
   const terminalResult = useRef(false);
   useEffect(() => {
+    setContact(null);
     setSaved(null);
     setResult(null);
     setError("");
@@ -147,6 +154,23 @@ export default function Checkout({
           localStorage.getItem(checkoutStorageKey(owner)),
           owner,
         );
+        // Only gate a definitely new checkout. An ambiguous attempt must still
+        // be reconciled with its original key, even if the profile has changed.
+        if (!attempt || canReplaceCheckout(attempt, result)) {
+          const user = await currentCustomer();
+          if (latest.current.owner !== owner) return;
+          if (!user || user.id !== owner)
+            throw new Error("Your account changed. Reload your bag.");
+          const missing = {
+            ...(!user.email?.trim() ? { email: "" } : {}),
+            ...(!user.phone?.trim() ? { phone: "" } : {}),
+          };
+          if (Object.keys(missing).length) {
+            setContact({ owner, ...missing });
+            return;
+          }
+          setContact(null);
+        }
         if (attempt && canReplaceCheckout(attempt, result)) {
           if (
             !cart?.lines.length ||
@@ -277,27 +301,133 @@ export default function Checkout({
           Your bag has been kept.
         </p>
       )}
+      {contact?.owner === owner && (
+        <form
+          className="checkout-contact"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (running.current) return;
+            running.current = true;
+            setBusy(true);
+            setError("");
+            let savedContact = false;
+            try {
+              const { owner: expectedUserId, ...details } = contact;
+              const response = await postAccountData<{ user: Customer }>(
+                "/api/profile",
+                { ...details, expectedUserId },
+              );
+              if (latest.current.owner !== owner) return;
+              if (response.user.id !== owner)
+                throw new Error("Your account changed. Reload your bag.");
+              if (!response.user.email?.trim() || !response.user.phone?.trim())
+                throw new Error(
+                  "Your contact details could not be confirmed. Please try again.",
+                );
+              setContact(null);
+              savedContact = true;
+            } catch (e) {
+              if (latest.current.owner === owner)
+                setError((e as Error).message);
+            } finally {
+              running.current = false;
+              setBusy(false);
+            }
+            if (savedContact) await startOrResume();
+          }}
+        >
+          <h3>
+            {contact.email !== undefined && contact.phone !== undefined
+              ? "Add your contact details"
+              : contact.phone !== undefined
+                ? "Add your mobile number"
+                : "Add your email address"}
+          </h3>
+          <p>
+            We’ll save these details to your profile for checkout and delivery.
+          </p>
+          {contact.email !== undefined && (
+            <label>
+              Email address
+              <input
+                autoFocus
+                type="email"
+                name="email"
+                autoComplete="email"
+                required
+                maxLength={254}
+                disabled={busy}
+                value={contact.email}
+                onChange={(e) =>
+                  setContact({ ...contact, email: e.target.value })
+                }
+              />
+            </label>
+          )}
+          {contact.phone !== undefined && (
+            <>
+              <label>
+                Mobile number
+                <input
+                  autoFocus={contact.email === undefined}
+                  type="tel"
+                  name="phone"
+                  autoComplete="tel"
+                  required
+                  maxLength={24}
+                  disabled={busy}
+                  aria-describedby="checkout-phone-help"
+                  value={contact.phone}
+                  onChange={(e) =>
+                    setContact({ ...contact, phone: e.target.value })
+                  }
+                />
+              </label>
+              <small id="checkout-phone-help">
+                Include the country code, such as +44. Your courier needs this
+                to contact you.
+              </small>
+            </>
+          )}
+          <button className="primary wide" disabled={busy}>
+            {busy ? "Saving…" : "Save and continue"}
+          </button>
+          <button
+            className="text-link"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setContact(null);
+              setError("");
+            }}
+          >
+            Cancel
+          </button>
+        </form>
+      )}
       {error && <p role="alert">{error}</p>}
-      <button
-        className="primary wide"
-        disabled={
-          !loaded ||
-          restoring ||
-          busy ||
-          !!addressIssue ||
-          ((!active || terminal) &&
-            (!eligible ||
-              checkoutVisibility(cart, false) !== "start" ||
-              !addressId))
-        }
-        onClick={startOrResume}
-      >
-        {busy || restoring
-          ? "Checking checkout…"
-          : active && !terminal
-            ? "Resume checkout"
-            : "Checkout"}
-      </button>
+      {contact?.owner !== owner && (
+        <button
+          className="primary wide"
+          disabled={
+            !loaded ||
+            restoring ||
+            busy ||
+            !!addressIssue ||
+            ((!active || terminal) &&
+              (!eligible ||
+                checkoutVisibility(cart, false) !== "start" ||
+                !addressId))
+          }
+          onClick={startOrResume}
+        >
+          {busy || restoring
+            ? "Checking checkout…"
+            : active && !terminal
+              ? "Resume checkout"
+              : "Checkout"}
+        </button>
+      )}
       {!restoring && addressIssue && <p role="status">{addressIssue}</p>}
       {!restoring && !terminal && active?.id && (
         <button
