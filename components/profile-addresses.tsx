@@ -4,6 +4,7 @@ import type { SavedAddress } from "../lib/contracts";
 import { addressLabels, type AddressFields } from "../lib/profile";
 import { postAccountData } from "../lib/client/session";
 import { useCustomer } from "./customer-context";
+import AddressSearch from "./address-search";
 import NavigationIcon from "./navigation-icon";
 import { CustomerEmptyState } from "./customer-page";
 
@@ -42,6 +43,7 @@ function AddressForm({
     postcode: address?.postcode ?? "",
     deliveryInstructions: address?.deliveryInstructions ?? "",
   });
+  const line1Input = useRef<HTMLInputElement>(null);
   return (
     <form
       className="account-content address-form"
@@ -51,7 +53,18 @@ function AddressForm({
       }}
     >
       <h3>{address ? "Edit address" : "Add an address"}</h3>
-      <p>United Kingdom</p>
+      <AddressSearch purpose="profile" disabled={busy} onSelect={(result) => {
+        setValue((previous) => ({
+          ...previous,
+          line1: result.line1,
+          line2: "",
+          city: result.city,
+          state: result.state,
+          postcode: result.postcode,
+        }));
+        line1Input.current?.focus();
+      }} />
+      <p>Choose an address above or enter it below.</p>
       <fieldset className="address-label-options" disabled={busy}>
         <legend>Address name</legend>
         <div>
@@ -75,7 +88,7 @@ function AddressForm({
           <label key={field.key}>
             {field.label}
             <input
-              autoFocus={field.key === "line1"}
+              ref={field.key === "line1" ? line1Input : undefined}
               name={field.key}
               autoComplete={field.autoComplete}
               value={value[field.key]}

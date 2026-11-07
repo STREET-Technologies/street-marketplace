@@ -1,3 +1,4 @@
+import { formatUkPostcode } from "../address-search.ts";
 // Temporary reverse-geocoding results stay in browser memory only.
 export async function locationPostcode(
   coordinates: { latitude: number; longitude: number },
@@ -24,9 +25,8 @@ export async function locationPostcode(
       if (feature?.properties?.feature_type !== "postcode") continue;
       const name = feature.properties.name;
       if (typeof name !== "string") continue;
-      const postcode = name.toUpperCase().replace(/\s/g, "");
-      if (/^(?:GIR0AA|[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2})$/.test(postcode))
-        return `${postcode.slice(0, -3)} ${postcode.slice(-3)}`;
+      const postcode = formatUkPostcode(name);
+      if (postcode) return postcode;
     }
   } catch {
     // Lookup must never block browsing or leak provider details/token to clients.

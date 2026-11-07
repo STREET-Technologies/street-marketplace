@@ -3,6 +3,7 @@ import NavigationIcon from "./navigation-icon";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
+import AddressSearch from "./address-search";
 import HeaderActions from "./header-actions";
 import { SavedAddressOptions, useCustomer } from "./customer-context";
 
@@ -10,7 +11,7 @@ export default function MarketplaceHeader() {
   const pathname = usePathname();
   const params = useSearchParams();
   const router = useRouter();
-  const { selected, coordinates, currentPostcode, select, useDeviceLocation } =
+  const { selected, coordinates, currentLocationLabel, locationSource, select, useDeviceLocation, useSearchLocation } =
     useCustomer();
   const dialog = useRef<HTMLDialogElement>(null);
   const request = useRef(0);
@@ -25,7 +26,7 @@ export default function MarketplaceHeader() {
   const location = selected
     ? `${selected.label} · ${selected.postcode}`
     : coordinates
-      ? currentPostcode || "Current location"
+      ? currentLocationLabel || "Current location"
       : "Choose location";
   const resetPage = () => {
     if (pathname === "/" && params.has("page")) {
@@ -201,18 +202,24 @@ export default function MarketplaceHeader() {
         <div className="location-picker-heading">
           <h2 id="location-title">Where are you shopping?</h2>
           <button
-            className="text-link"
+            className="profile-heading-action"
             onClick={close}
             aria-label="Close location picker"
           >
-            Close
+            <NavigationIcon name="close" />
           </button>
         </div>
-        <p>Find products near your current location or a saved address.</p>
+        {pickerOpen && (
+          <AddressSearch purpose="browse" onSelect={(result) => {
+            useSearchLocation(result);
+            resetPage();
+            close();
+          }} />
+        )}
         <button
           className="current-location-option"
           disabled={locating}
-          aria-pressed={!!coordinates}
+          aria-pressed={locationSource === "device"}
           onClick={chooseCurrentLocation}
         >
           <svg
@@ -229,9 +236,9 @@ export default function MarketplaceHeader() {
             <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
           </svg>
           {locating ? "Finding your location…" : "Use my current location"}
-          {coordinates && !locating && (
+          {locationSource === "device" && !locating && (
             <span>
-              {currentPostcode ? `${currentPostcode} · Selected` : "Selected"}
+              {currentLocationLabel ? `${currentLocationLabel} · Selected` : "Selected"}
             </span>
           )}
         </button>
@@ -258,13 +265,9 @@ export default function MarketplaceHeader() {
               close();
             }}
           >
-            Clear current location
+            Clear location
           </button>
         )}
-        <p className="location-picker-note">
-          This sets your browsing area. Delivery eligibility is checked
-          separately using a saved address.
-        </p>
       </dialog>
     </>
   );

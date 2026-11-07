@@ -1,6 +1,8 @@
 "use client";
+import type { AddressSearchResult } from "../lib/address-search";
 import { setCatalogueOwner } from "../lib/client/catalogue";
 import NavigationIcon from "./navigation-icon";
+import { CustomerEmptyState } from "./customer-page";
 import Link from "next/link";
 import {
   startTransition,
@@ -37,7 +39,9 @@ type State = {
 export type Coordinates = { latitude: number; longitude: number };
 type Context = {
   coordinates: Coordinates | null;
-  currentPostcode: string | null;
+  currentLocationLabel: string | null;
+  locationSource: "device" | "search" | null;
+  useSearchLocation: (result: AddressSearchResult) => void;
   useDeviceLocation: (coordinates: Coordinates) => void;
   state: State;
   selected: SavedAddress | null;
@@ -55,13 +59,18 @@ export const useCustomer = () => {
 export function CustomerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [addressId, setAddressId] = useState<string | null>(null);
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [browsingLocation, setBrowsingLocation] = useState<{
+    coordinates: Coordinates;
+    source: "device" | "search";
+    label?: string;
+  } | null>(null);
+  const coordinates = browsingLocation?.coordinates ?? null;
   const [postcodeResult, setPostcodeResult] = useState<{
     coordinates: Coordinates;
     postcode: string | null;
   } | null>(null);
   useEffect(() => {
-    if (!coordinates) return;
+    if (!coordinates || browsingLocation?.source !== "device") return;
     const controller = new AbortController();
     fetch("/api/location/postcode", {
       method: "POST",
@@ -82,7 +91,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         /* Coordinates remain usable if the label lookup fails. */
       });
     return () => controller.abort();
-  }, [coordinates]);
+  }, [coordinates, browsingLocation?.source]);
 
   const [pending, setPending] = useState<string | null>(null);
   const needsRefresh = useRef(false);
@@ -142,7 +151,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
     };
     const sessionChanged = () => {
       epoch.current++;
-      setCoordinates(null);
+      setBrowsingLocation(null);
       setAddressId(null);
       setState({ status: "loading" });
       void refresh();
@@ -209,17 +218,21 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         state,
         selected,
         coordinates,
-        currentPostcode:
-          postcodeResult?.coordinates === coordinates
-            ? postcodeResult.postcode
-            : null,
+        locationSource: browsingLocation?.source ?? null,
+        currentLocationLabel: browsingLocation?.label ?? (
+          postcodeResult?.coordinates === coordinates ? postcodeResult.postcode : null
+        ),
+        useSearchLocation: (result) => {
+          setAddressId(null);
+          setBrowsingLocation({ coordinates: result.coordinates, source: "search", label: result.kind === "postcode" ? result.postcode : result.label });
+        },
         select: (id) => {
-          setCoordinates(null);
+          setBrowsingLocation(null);
           setAddressId(id);
         },
         useDeviceLocation: (value) => {
           setAddressId(null);
-          setCoordinates(value);
+          setBrowsingLocation({ coordinates: value, source: "device" });
         },
         refresh,
         pending,
@@ -318,14 +331,24 @@ export function SavedAddressOptions({ onSelect }: { onSelect: () => void }) {
   const { state, selected, select, refresh } = useCustomer();
   return (
     <div className="address-panel">
-      <h2>Your saved addresses</h2>
-      <p>
-        Use an address from your STREET account to see nearby shops. This does
-        not change your default address.
-      </p>
+      <div className="address-panel-heading">
+        <h2>Your saved addresses</h2>
+        {(state.status === "ready" || state.status === "loading") && (
+          <button
+            className="profile-heading-action"
+            onClick={refresh}
+            disabled={state.status === "loading"}
+            aria-label="Refresh addresses"
+            title="Refresh addresses"
+            aria-busy={state.status === "loading"}
+          >
+            <NavigationIcon name="refresh" />
+          </button>
+        )}
+      </div>
       {state.status === "loading" && <p role="status">Loading addresses…</p>}
       {state.status === "guest" && (
-        <Link className="text-link" href="/account">
+        <Link className="text-link" href="/account" onClick={onSelect}>
           Sign in to choose an address
         </Link>
       )}
@@ -340,9 +363,15 @@ export function SavedAddressOptions({ onSelect }: { onSelect: () => void }) {
       {state.status === "ready" && (
         <>
           {!state.data?.addresses.length && (
-            <p>
-              No saved addresses yet. <Link href="/account" onClick={onSelect}>Add an address in Profile</Link>.
-            </p>
+            <CustomerEmptyState
+              icon="location"
+              title="No addresses saved"
+              message="Add an address in your Profile."
+            >
+              <Link className="secondary" href="/account" onClick={onSelect}>
+                Go to Profile
+              </Link>
+            </CustomerEmptyState>
           )}
           <div className="address-options">
             {state.data?.addresses.map((a) => (
@@ -374,9 +403,11 @@ export function SavedAddressOptions({ onSelect }: { onSelect: () => void }) {
               </button>
             ))}
           </div>
-          <button className="text-link" onClick={refresh}>
-            Refresh addresses
-          </button>
+          {!!state.data?.addresses.length && (
+            <Link className="text-link" href="/account" onClick={onSelect}>
+              Add an address in Profile
+            </Link>
+          )}
           {selected && (
             <button
               className="text-link"

@@ -11,6 +11,7 @@ export default function NavigationIcon({
     | "store"
     | "history"
     | "returns"
+    | "close"
     | "refresh"
     | "plus"
     | "check-circle";
@@ -40,6 +41,7 @@ export default function NavigationIcon({
           <path d="m8 12 3 3 5-6" />
         </>
       )}
+      {name === "close" && <path d="m6 6 12 12M6 18 18 6" />}
       {name === "plus" && <path d="M12 5v14M5 12h14" />}
       {name === "refresh" && (
         <>
