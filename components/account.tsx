@@ -145,6 +145,11 @@ export default function Account() {
       }
     >
       <div className="account-content">
+        {!sent && (
+          <p className="account-note sign-in-guidance">
+            Already use STREET? Choose the same sign-in method you use in the app.
+          </p>
+        )}
         <form
           onSubmit={(event) => {
             event.preventDefault();

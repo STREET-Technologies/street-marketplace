@@ -810,3 +810,5 @@
 .apple-sign-in > [role="alert"] { margin-block: 12px; }
 .account-content .apple-link-confirm { display: flex; align-items: center; gap: 10px; margin-block: 12px; font-weight: 400; }
 .account-content .apple-link-confirm input { width: 18px; height: 18px; accent-color: var(--ink); }
+
+.account-content > .sign-in-guidance { margin: 0 0 24px; }

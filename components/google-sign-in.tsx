@@ -153,9 +153,6 @@ export default function GoogleSignIn(props: {
           </button>
         </>
       )}
-      <p className="account-note">
-        Already use STREET? Choose the same sign-in method you use in the app.
-      </p>
     </div>
   );
 }
