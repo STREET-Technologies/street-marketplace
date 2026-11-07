@@ -12,7 +12,8 @@ export default function NavigationIcon({
     | "history"
     | "returns"
     | "refresh"
-    | "plus";
+    | "plus"
+    | "check-circle";
   filled?: boolean;
 }) {
   return (
@@ -31,6 +32,12 @@ export default function NavigationIcon({
         <>
           <path d="M9 3h9l3 3v15H7V10" />
           <path d="M3 7h10v7M3 7l4-4M3 7l4 4" />
+        </>
+      )}
+      {name === "check-circle" && (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8 12 3 3 5-6" />
         </>
       )}
       {name === "plus" && <path d="M12 5v14M5 12h14" />}

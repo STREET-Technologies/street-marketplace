@@ -209,12 +209,9 @@ export default function AppleSignIn(props: Props) {
           data-border="false"
           data-type="continue"
           data-border-radius="4"
-          data-mode="left-align"
+          data-mode="center-align"
           data-width="100%"
           data-height="32"
-          data-logo-size="small"
-          data-logo-position="10"
-          data-label-position="36"
           hidden={state === "error"}
           inert={
             props.disabled ||

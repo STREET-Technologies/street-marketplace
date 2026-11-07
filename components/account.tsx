@@ -209,6 +209,7 @@ export default function Account() {
                 ? "Verify and continue"
                 : "Send me a code"}
           </button>
+          {!sent && <p className="account-note">We’ll send a sign-in code by text message.</p>}
         </form>
         {!sent && (
           <GoogleSignIn
@@ -238,10 +239,6 @@ export default function Account() {
             Change number or request another code
           </button>
         )}
-        <p className="account-note">
-          This connects to STREET staging. Requesting a code sends a text
-          message to the number you enter.
-        </p>
       </div>
     </CustomerEmptyState>
   );

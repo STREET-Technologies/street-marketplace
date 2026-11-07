@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import AppleSignIn from "./apple-sign-in";
+import NavigationIcon from "./navigation-icon";
 import type { Customer } from "../lib/contracts";
 import { profilePermissions, type ProfileChanges } from "../lib/profile";
 import { currentCustomer, postAccountData } from "../lib/client/session";
@@ -160,7 +161,8 @@ export default function ProfileDetails({
       </form>
       {user.appleConnected === true && (
         <p className="apple-connected" role="status">
-          Apple connected
+          <NavigationIcon name="check-circle" />
+          <strong>Apple connected</strong>
         </p>
       )}
       {user.appleConnected === false && (

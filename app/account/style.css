@@ -796,7 +796,15 @@
   background: white;
 }
 .apple-sign-in-button { width: 100%; height: 32px; }
-.apple-connected { margin-block: 24px 0; }
+.profile-section > .apple-connected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 24px 0;
+  color: var(--ink);
+  font-size: 15px;
+}
+.apple-connected svg { flex-shrink: 0; }
 .apple-sign-in-button[inert] { opacity: 0.6; }
 .apple-sign-in .text-link { min-height: 44px; }
 .apple-sign-in > [role="alert"] { margin-block: 12px; }
