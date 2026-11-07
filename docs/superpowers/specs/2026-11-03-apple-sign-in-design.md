@@ -1,6 +1,6 @@
 # Apple sign-in: shared account security and web access
 
-Status: approved for staging implementation. Database foundation deployed as backend v5.50.4 on 2026-11-03; authentication implementation remains local and disabled pending provider configuration and coordinated mobile/web acceptance. Apple website configuration is not yet verified.
+Status: existing-account staging pilot implemented and accepted on 2026-11-07. Marketplace v0.1.16, backend v5.50.7 and mobile staging build 1.0.11+125 support verified Apple linking/login across web and mobile. Same-account data and deletion cleanup verified. New Apple signup is deferred to a separate branch/session; production is unchanged. See docs/apple-web-sign-in-setup.md for current acceptance and remaining provider lifecycle checks.
 
 ## Intent and approved direction
 

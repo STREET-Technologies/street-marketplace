@@ -1,8 +1,10 @@
 # Apple web sign-in: staging setup and acceptance
 
-Release preparation updated 2026-11-06. Backend v5.50.5 is tested, tagged and pushed, but staging remains on database foundation v5.50.4 until the updated iPhone app is installed. Signing and encryption configuration is installed and validated on staging with Apple authentication disabled. Marketplace v0.1.12 includes the web flow and isolated build-test configuration; keep its Apple flag disabled until backend cutover. No real Apple account login has been verified yet.
+Staging acceptance updated 2026-11-07. Apple sign-in is enabled on marketplace-staging.street.london, with marketplace v0.1.16 and backend v5.50.7. The user confirmed native linking, subsequent native/web Apple login, matching profile/addresses/wishlist/orders and the final web sign-in UI. Mobile staging build 1.0.11+125 was distributed manually through Codemagic. Production remains unchanged.
 
-Mobile tag `staging-1.0.11+125` is pushed on `feat/tt-531-apple-account-link`. Run Codemagic manually with the `ios-firebase` workflow and this tag. Both CI environment generators enable the staging pilot and explicitly disable it for production. Install over the existing staging app without uninstalling or signing out, then perform the coordinated backend and web activation below.
+Deletion follow-up TT-551 is deployed: deleted accounts reject access/refresh sessions, shared session cleanup removes legacy/per-device refresh keys, and Firebase deletion avoids overlapping paths. The tested deleted account has no remaining Apple identity, refresh keys or relevant Firebase paths. Apple revocation failure was not logged; explicit provider success receipts are not retained. Independent consent-revocation/notification delivery still needs end-to-end acceptance.
+
+This is an existing-account pilot. New Apple signup remains a separate follow-up; unknown Apple subjects must not create or merge accounts by email. The configuration and original activation procedure below are retained as reference, not outstanding setup steps.
 
 ## Apple Developer configuration
 

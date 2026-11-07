@@ -53,7 +53,7 @@ Mutation routes require matching Origin and JSON, validate allowed fields and bo
 | `/api/delivery-check`    | GET address/vendor/outlet IDs, authenticated                  | Owned address → paginated nearby `/vendors` → matched outlet `/online-status`                 |
 | `/api/favourites`        | GET `?productsPage=1&shopsPage=1`                             | `/favorites/products`, `/favorites/vendors`, then catalogue detail reads                      |
 
-There are no generic proxy routes, checkout/order mutation routes, test-login bypasses or Apple/Google routes in this foundation.
+There are no generic proxy routes or test-login bypasses. The original foundation route list above predates the checkout and social sign-in integrations documented below.
 
 ## Current boundaries and next slice
 
@@ -61,7 +61,7 @@ The catalogue uses staging data with explicit loading, error, empty and unavaila
 
 Profile/address creation and editing, Shopify checkout, tracking and mobile app purchase handoff remain unimplemented. Add or correct addresses in the app, then refresh them here. Service-area checks reuse backend discovery rules and opening status for the exact outlet; they do not guarantee courier availability or delivery. No deployments, payments, orders or courier jobs have been created. Favourite changes are real staging account writes when you use the controls; verification used fixtures only.
 
-The user confirmed existing-account OTP login on desktop/staging mobile and confirmed their favourites appear on desktop. This verifies the observed shared-account flow; new-account and cross-provider deduplication still need separate acceptance checks. Canonical user-ID comparison has not been independently performed. Apple enablement depends on TT-505. See [INTEGRATION-PLAN.md](INTEGRATION-PLAN.md) for remaining gates.
+The user confirmed existing-account OTP login on desktop/staging mobile and confirmed their favourites appear on desktop. This verifies the observed shared-account flow; new-account and cross-provider deduplication still need separate acceptance checks. Canonical user-ID comparison has not been independently performed. Existing-account Apple sign-in is enabled and accepted on staging; see `docs/apple-web-sign-in-setup.md`. See [INTEGRATION-PLAN.md](INTEGRATION-PLAN.md) for remaining gates.
 
 `vercel.json` now selects Next.js and its server runtime; do not deploy the old `dist/` directory. No remote marketplace repository or hosting project is configured. The retired `server.mjs` and `build.mjs` fail with migration instructions instead of serving source or producing stale static builds. The old `index.html` is retained as source reference and is not served by Next.js. Only files under `public/` are served as static assets.
 
@@ -121,11 +121,11 @@ Set server-only `MAPBOX_ACCESS_TOKEN` locally and in Vercel to enable the postco
 
 ### Google sign-in alongside OTP (TT-531)
 
-On `feat/tt-531-web-social-sign-in`, Google uses the official Google Identity Services popup button and the existing staging `/auth/google/token` endpoint. The web server verifies the signed ID token and browser nonce before issuing the same STREET session as OTP. Apple remains deferred. There is no separate web account store and no backend change.
+On `feat/tt-531-web-social-sign-in`, Google uses the official Google Identity Services popup button and the existing staging `/auth/google/token` endpoint. The web server verifies the signed ID token and browser nonce before issuing the same STREET session as OTP. Apple is now available alongside Google and OTP for the existing-account staging pilot. There is no separate web account store; Apple uses the verified shared backend integration documented in `docs/apple-web-sign-in-setup.md`.
 
 Set server-only `GOOGLE_CLIENT_ID` to the existing staging Google **Web application** client ID already accepted by the backend. This is a public client identifier, not a client secret. It is configured in the ignored local environment; Vercel still needs it on the target environment. In Google Cloud, authorize the exact JavaScript origins used for testing, including `http://localhost:4319` and the chosen stable HTTPS Vercel origin (no path). Do not assume arbitrary preview hosts are authorized. The popup credential flow needs no client secret or redirect callback route.
 
-Without this setting the Google option is hidden and OTP remains available. SDK/popup failures do not sign the user in; retry starts a fresh challenge. Existing customers should choose the same method used in the app. Backend phone/email matching does not guarantee account merging across different methods; shared identity work remains TT-532. Apple security remediation remains TT-505.
+Without this setting the Google option is hidden and OTP remains available. SDK/popup failures do not sign the user in; retry starts a fresh challenge. Existing customers should choose the same method used in the app. Backend phone/email matching does not guarantee account merging across different methods; shared identity work remains TT-532. Apple verification and identity binding are implemented on staging (TT-505/TT-531); new Apple signup remains separate.
 
 Local acceptance passed with the user’s existing Google mobile account: profile, wishlist and addresses match, and sign-out/sign-in succeeds. Repeat these checks on Vercel staging. Check cancellation and blocked-popup recovery, then confirm OTP still works. Automated tests use generated signed tokens and fixtures, never customer credentials. See `docs/web-social-sign-in-provider-research.md` for token validation and challenge limitations.
 
@@ -152,3 +152,7 @@ Browser fixture: with the ordinary disabled dev server on port 4319 and a tempor
 My orders has Active orders, Order history and read-only Returns, sharing one responsive summary. Returns are managed by retailers through Shopify; no submission or processing actions are exposed. Customer-safe return fields include status, note, quantity, reasons and actual refunded amount. Declined/cancelled returns stay in order history, matching mobile.
 
 `GET /api/orders?counts=true` calculates all view totals using existing authenticated order pages and the same filters as each list. Counts are independent of visible pagination; returns count orders with returns, not returned items. Scans are capped at ten 100-order pages. Partial, duplicate or changing scans return an unavailable response rather than a misleading total. No backend schema/API changes are required. Counts refresh with manual refresh, focus and observed live order transitions.
+
+## Apple staging acceptance — 2026-11-07
+
+Existing-account Apple login and explicit linking are verified across the physical iPhone app and marketplace, with matching account data. Marketplace v0.1.16 includes the accepted button, progress/cancellation feedback and connected-profile state. Backend v5.50.7 fixes deleted-account session invalidation and Firebase cleanup (TT-551). New Apple signup is intentionally deferred to a separate branch/session. Production rollout and independent consent-revocation/notification delivery checks remain separate. See [Apple setup and acceptance](docs/apple-web-sign-in-setup.md).
