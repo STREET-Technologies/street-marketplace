@@ -4,7 +4,7 @@ Staging acceptance updated 2026-11-07. Apple sign-in is enabled on marketplace-s
 
 Deletion follow-up TT-551 is deployed: deleted accounts reject access/refresh sessions, shared session cleanup removes legacy/per-device refresh keys, and Firebase deletion avoids overlapping paths. The tested deleted account has no remaining Apple identity, refresh keys or relevant Firebase paths. Apple revocation failure was not logged; explicit provider success receipts are not retained. Independent consent-revocation/notification delivery still needs end-to-end acceptance.
 
-This is an existing-account pilot. New Apple signup remains a separate follow-up; unknown Apple subjects must not create or merge accounts by email. The configuration and original activation procedure below are retained as reference, not outstanding setup steps.
+TT-552 extends the pilot with new Apple signup in backend v5.50.8 and marketplace v0.1.17. A new verified subject with a verified email creates one canonical customer and identity atomically. Existing-email collisions require explicit linking; email never grants account ownership. Names are optional and captured on first authorization, including when Hide My Email is used. The current mobile staging build already supports the response contract. Real new-account and cross-device acceptance remains outstanding. The configuration and original activation procedure below are retained as reference, not outstanding setup steps.
 
 ## Apple Developer configuration
 
@@ -45,7 +45,7 @@ Customer mobile staging build:
 2. In profile settings choose **Connect Apple**, confirm the displayed STREET account and complete fresh native Apple authorization. The current session refreshes normally; no sign-out is required.
 3. On the website choose **Continue with Apple** using the same Apple account. Verify the canonical STREET user ID, addresses, wishlist and order history match.
 4. Sign out/back in, change a profile email and verify Apple still selects the same account. Test popup cancellation, failure/retry and a relay-email account.
-5. Verify unknown subjects show account confirmation/support guidance and create no duplicate account. New Apple signup is deliberately not supported in this pilot.
+5. With a genuinely new Apple account, verify signup on web and then login on mobile resolves the same STREET account. Repeat with Hide My Email. Existing-email collisions must show explicit account-linking guidance rather than merging accounts. Returning subjects must retain their account even if profile email changes.
 6. Test revocation/relink on a dedicated test account: pre-revocation refresh tokens must remain invalid after reconnection. Test account deletion separately; provider failure must not block deletion. Manual fallback: Apple Account → Sign in with Apple → STREET → Stop Using.
 
 The backend signed notification endpoint is `/v1/auth/apple/notifications`. Verify ownership of the primary App ID/group notification setting before changing it: this may be shared with other environments. The implementation validates Apple's signature and configured audience, handles consent-revoked/account-deleted and invalidates old Apple session generations. Register and test delivery as part of activation; route shared-group events appropriately rather than redirecting an existing endpoint blindly.
