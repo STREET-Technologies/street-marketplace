@@ -6,7 +6,7 @@ import { postAccountData } from "../lib/client/session";
 import { useCustomer } from "./customer-context";
 import AddressSearch from "./address-search";
 import NavigationIcon from "./navigation-icon";
-import { CustomerEmptyState } from "./customer-page";
+import { CustomerEmptyState, CustomerLoading } from "./customer-page";
 
 const addressInputs = [
   { key: "line1", label: "Address line 1", autoComplete: "address-line1" },
@@ -248,7 +248,7 @@ export default function ProfileAddresses({ resetRequest = 0 }: { resetRequest?: 
       ) : (
         <>
           {state.status === "loading" && (
-            <p role="status">Loading addresses…</p>
+            <CustomerLoading label="Loading addresses…" />
           )}
           {state.status === "error" && (
             <p role="alert">

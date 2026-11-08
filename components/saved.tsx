@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { CustomerEmptyState, CustomerSignIn } from "./customer-page";
+import CustomerTabs from "./customer-tabs";
+import NavigationIcon from "./navigation-icon";
+import { CustomerEmptyState, CustomerSignIn, CustomerLoading } from "./customer-page";
 import { FavouriteButton } from "./customer-context";
 import { useEffect, useState } from "react";
 import type { Favourites, SavedItem, SavedPage } from "../lib/contracts";
@@ -43,10 +45,6 @@ function Collection({
 }) {
   return (
     <section className="saved-collection" aria-label={title}>
-      <div className="section-heading">
-        <h2>{title}</h2>
-        <span>{collection.total} saved</span>
-      </div>
       {!collection.total ? (
         <CustomerEmptyState
           icon={kind === "products" ? "heart" : "store"}
@@ -193,57 +191,74 @@ export default function Saved() {
       document.removeEventListener("visibilitychange", load);
     };
   }, [productsPage, shopsPage, revision]);
+  if (state.status === "signed-out")
+    return (
+      <CustomerSignIn
+        icon="heart"
+        title="Your wishlist"
+        message="Sign in to keep track of the stores and items you love."
+      />
+    );
   return (
-    <>
-      {(state.status === "ready" || state.status === "error") && (
-        <div className="customer-toolbar">
-          <div
-            className="saved-collection-switch"
-            role="group"
-            aria-label="Wishlist collections"
-          >
-            <button
-              aria-pressed={collection === "products"}
-              onClick={() => setCollection("products")}
-            >
-              Products
-            </button>
-            <button
-              aria-pressed={collection === "shops"}
-              onClick={() => setCollection("shops")}
-            >
-              Stores
-            </button>
-          </div>
-          <button
-            className="secondary"
-            onClick={() => setRevision((value) => value + 1)}
-          >
-            Refresh
-          </button>
-        </div>
-      )}
-      {state.status === "loading" && (
-        <p role="status">Loading your saved items…</p>
-      )}
-      {state.status === "signed-out" && (
-        <CustomerSignIn
-          icon="heart"
-          title="Your wishlist"
-          message="Sign in to keep track of the stores and items you love."
-        />
-      )}
-      {state.status === "error" && (
-        <p role="alert">{state.message} Use Refresh to try again.</p>
-      )}
-      {state.status === "ready" && (
-        <Collection
-          title={collection === "products" ? "Products" : "Stores"}
-          kind={collection}
-          collection={state.data[collection]}
-          onPage={collection === "products" ? setProductsPage : setShopsPage}
-        />
-      )}
-    </>
+    <CustomerTabs
+      sidebar
+      label="Wishlist collections"
+      value={collection}
+      onChange={(key) => setCollection(key as "products" | "shops")}
+      tabs={(["products", "shops"] as const).map((kind) => {
+        const title = kind === "products" ? "Products" : "Stores";
+        return {
+          key: kind,
+          label: title,
+          content: kind === collection ? (
+            <>
+              <div className="saved-heading">
+                <div className="profile-heading-title">
+                  <h2>{title}</h2>
+                  <button
+                    className="profile-heading-action"
+                    aria-label={`Refresh ${title.toLowerCase()}`}
+                    title={`Refresh ${title.toLowerCase()}`}
+                    disabled={state.status === "loading"}
+                    onClick={() => setRevision((value) => value + 1)}
+                  >
+                    <NavigationIcon name="refresh" />
+                  </button>
+                </div>
+                {state.status === "ready" && (
+                  <p className="saved-count" role="status">{state.data[kind].total} saved</p>
+                )}
+              </div>
+              {state.status === "loading" && (
+                <CustomerLoading label="Loading your saved items…">
+                  <div className={`product-grid saved-grid saved-grid--${kind}`}>
+                    {Array.from({ length: kind === "products" ? 10 : 8 }, (_, index) => (
+                      <div key={index}>
+                        <span className="saved-image skeleton-block" />
+                        <div className="skeleton-copy">
+                          <span className="skeleton-block skeleton-line skeleton-line--title" />
+                          <span className="skeleton-block skeleton-line" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CustomerLoading>
+              )}
+              {state.status === "error" && (
+                <p role="alert">{state.message} Use Refresh to try again.</p>
+              )}
+              {state.status === "ready" && (
+                <Collection
+                  title={title}
+                  kind={kind}
+                  collection={state.data[kind]}
+                  onPage={kind === "products" ? setProductsPage : setShopsPage}
+                />
+              )}
+            </>
+          ) : null,
+        };
+      })}
+    />
   );
 }

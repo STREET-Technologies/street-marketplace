@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CustomerEmptyState } from "./customer-page";
+import { CustomerEmptyState, CustomerLoading } from "./customer-page";
 import CustomerTabs from "./customer-tabs";
 import ProfileDetails from "./profile-details";
 import ProfileAddresses from "./profile-addresses";
@@ -61,7 +61,28 @@ export default function Account() {
     }
   }
 
-  if (loading) return <p role="status">Checking your account…</p>;
+  if (loading) return (
+    <CustomerLoading label="Loading your profile…">
+      <div className="browse-layout customer-loading-profile">
+        <div className="customer-loading-nav">
+          {Array.from({ length: 3 }, (_, index) => (
+            <span className="skeleton-block customer-loading-field" key={index} />
+          ))}
+        </div>
+        <div>
+          <span className="skeleton-block skeleton-line skeleton-line--title" />
+          <div className="customer-loading-fields">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div className="skeleton-copy" key={index}>
+                <span className="skeleton-block skeleton-line skeleton-line--short" />
+                <span className="skeleton-block customer-loading-field" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </CustomerLoading>
+  );
   if (loadFailed)
     return (
       <>

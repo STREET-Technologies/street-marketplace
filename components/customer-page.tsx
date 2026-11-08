@@ -68,3 +68,29 @@ export function CustomerSignIn({
     </CustomerEmptyState>
   );
 }
+
+// Loading visuals share the catalogue skeleton tokens and reduced-motion rule.
+export function CustomerLoading({
+  label,
+  children,
+  rows = 3,
+}: {
+  label: string;
+  children?: ReactNode;
+  rows?: number;
+}) {
+  return (
+    <div className="customer-loading" role="status">
+      <span className="sr-only">{label}</span>
+      <div aria-hidden="true">
+        {children ?? Array.from({ length: rows }, (_, index) => (
+          <div className="customer-loading-row" key={index}>
+            <span className="skeleton-block skeleton-line skeleton-line--short" />
+            <span className="skeleton-block skeleton-line skeleton-line--title" />
+            <span className="skeleton-block skeleton-line" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

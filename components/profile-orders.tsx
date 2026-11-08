@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CustomerEmptyState } from "./customer-page";
+import { CustomerEmptyState, CustomerLoading } from "./customer-page";
 import CustomerTabs from "./customer-tabs";
 import NavigationIcon from "./navigation-icon";
 import OrderTracking from "./order-tracking";
@@ -160,7 +160,10 @@ export default function ProfileOrders({
             ? `${counts[group]} ${group === "active" ? (counts[group] === 1 ? "active order" : "active orders") : group === "returns" ? (counts[group] === 1 ? "order with returns" : "orders with returns") : counts[group] === 1 ? "order" : "orders"}`
             : countFailed
               ? "Order count unavailable"
-              : "Counting orders…"}
+              : <>
+                  <span className="sr-only">Counting orders…</span>
+                  <span className="skeleton-block skeleton-line skeleton-line--short" aria-hidden="true" />
+                </>}
         </p>
       )}
       </div>
@@ -338,9 +341,7 @@ function OrderFeed({
         </ul>
       )}
       {loading && (
-        <p role="status" className="order-loading">
-          Loading your orders…
-        </p>
+        <CustomerLoading label="Loading your orders…" rows={orders.length ? 1 : 3} />
       )}
       {error && (
         <OrderError
@@ -424,9 +425,7 @@ function OrderSummary({
   if (error && !order) return <OrderError error={error} retry={retry} />;
   if (!order)
     return (
-      <p role="status" className="order-loading">
-        Loading your order…
-      </p>
+      <CustomerLoading label="Loading your order…" />
     );
   const isActive = orderGroup(order.status) === "active";
   const totals = orderTotals(order);

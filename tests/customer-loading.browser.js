@@ -1,0 +1,56 @@
+// Run with Playwright CLI against localhost:4319; all account reads are mocked.
+async page => {
+  await page.unrouteAll();
+  await page.setViewportSize({width:1440,height:1000});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  const id='576fa9b6-3775-426c-86d5-5ef8710c35e9';
+  let blocked='session';
+  const pending=new Set();
+  const release=(next='')=>{blocked=next; for(const resolve of pending) resolve(); pending.clear();};
+  const order={reference:'ST-001234',trackingId:null,store:'Fixture shop',image:null,createdAt:'2026-11-08T09:00:00Z',status:'ACCEPTED',returnStatus:'NONE',total:25};
+  await page.route('**/api/**',async route=>{
+    const url=new URL(route.request().url());
+    const kind=url.pathname==='/api/auth/session'?'session':url.pathname==='/api/customer-context'?'addresses':url.pathname==='/api/orders'?(url.searchParams.has('reference')?'summary':'orders'):url.pathname==='/api/favourites'?'wishlist':'';
+    if(kind && kind===blocked) await new Promise(resolve=>pending.add(resolve));
+    if(kind==='session') return route.fulfill({json:{user:{id,firstName:'Test',lastName:'Customer',email:'test@example.com',phone:'+447700900123',appleConnected:true}}});
+    if(kind==='addresses') return route.fulfill({json:{userId:id,addresses:[],favourites:[]}});
+    if(kind==='orders') return route.fulfill({json:url.searchParams.has('counts')?{active:1,past:0,returns:0}:{orders:[order],nextPage:null}});
+    if(kind==='summary') return route.fulfill({status:503,json:{error:'Order temporarily unavailable.'}});
+    if(kind==='wishlist') return route.fulfill({json:{products:{items:Array.from({length:10},(_,i)=>({key:`item-${i}`,name:`Saved product ${i+1}`,vendorId:id,productId:id,status:'ready',image:null,shopName:'Local store'})),total:10,page:1,totalPages:1},shops:{items:[],total:0,page:1,totalPages:1}}});
+    return route.fulfill({json:{}});
+  });
+  await page.goto('http://localhost:4319/account');
+  await page.locator('.customer-loading-profile').waitFor();
+  await page.screenshot({path:'/private/tmp/profile-loading-desktop.png'});
+  if(await page.locator('.customer-loading .skeleton-block').first().evaluate(el=>getComputedStyle(el).animationName)!=='none') throw Error('Reduced motion ignored');
+  release('addresses');
+  await page.getByRole('tab',{name:'My addresses',exact:true}).click();
+  await page.locator('[role="tabpanel"]:visible .customer-loading').waitFor();
+  release('orders');
+  await page.getByRole('heading',{name:'No addresses saved',exact:true}).waitFor();
+  await page.getByRole('tab',{name:'My orders',exact:true}).click();
+  await page.getByText('Loading your orders…',{exact:true}).waitFor();
+  await page.screenshot({path:'/private/tmp/orders-loading-desktop.png'});
+  release('summary');
+  await page.getByRole('button',{name:'View order ST-001234 from Fixture shop',exact:true}).click();
+  await page.getByText('Loading your order…',{exact:true}).waitFor();
+  if(!await page.locator('.order-detail-view .customer-loading').isVisible()) throw Error('Order detail skeleton missing');
+  release();
+  await page.getByText('Order temporarily unavailable.',{exact:true}).waitFor();
+  if(await page.locator('.order-detail-view .customer-loading').count()) throw Error('Skeleton hid error');
+  blocked='wishlist';
+  await page.goto('http://localhost:4319/saved');
+  await page.locator('.customer-loading .saved-grid').waitFor();
+  await page.screenshot({path:'/private/tmp/wishlist-loading-desktop.png'});
+  const columns=await page.locator('.customer-loading .saved-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
+  if(columns!==5) throw Error('Expected five compact product columns');
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'/private/tmp/wishlist-loading-mobile.png'});
+  release();
+  await page.getByText('10 saved',{exact:true}).waitFor();
+  if(await page.locator('.customer-loading').count()) throw Error('Wishlist skeleton did not clear');
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)) throw Error('Mobile overflow');
+  await page.setViewportSize({width:1440,height:1000});
+  await page.screenshot({path:'/private/tmp/wishlist-compact-desktop.png'});
+  return 'PASS: account/address/order/list/detail/wishlist skeletons, reduced motion, errors, compact desktop cards and mobile';
+}

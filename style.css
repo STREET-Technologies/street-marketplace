@@ -3117,19 +3117,10 @@ a.area-card,
   margin-top: 20px;
   font-size: 13px;
 }
-.customer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.saved-collection-switch,
 .customer-tabs {
   display: flex;
   gap: 8px;
 }
-.saved-collection-switch button,
 .customer-tabs button {
   padding: 12px 18px;
   min-height: 44px;
@@ -3137,7 +3128,6 @@ a.area-card,
   border-radius: var(--radius-control);
   font-size: 14px;
 }
-.saved-collection-switch [aria-pressed="true"],
 .customer-tabs [aria-selected="true"] {
   background: var(--lime);
   border-color: transparent;
@@ -3399,4 +3389,94 @@ a.area-card,
 
 .address-form > .address-search {
   margin-top: 20px;
+}
+
+/* Shared desktop sidebar and section headings for customer pages. */
+.customer-tab-layout > [role="tabpanel"] {
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .customer-tab-layout.browse-layout {
+    margin-top: 0;
+  }
+  .customer-tab-layout > .customer-tabs {
+    position: sticky;
+    top: 188px;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 2px;
+  }
+  .customer-tab-layout > .customer-tabs button {
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    border: 0;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  .customer-tab-layout > .customer-tabs [aria-selected="true"] {
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+.customer-tabs {
+  margin-bottom: 36px;
+}
+
+.profile-heading-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profile-heading-title h2 {
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .customer-tabs { margin-bottom: 28px; }
+}
+
+.customer-loading-row {
+  display: grid;
+  gap: 12px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+.customer-loading-profile.browse-layout {
+  margin-top: 0;
+}
+.customer-loading-profile > div:last-child {
+  max-width: 720px;
+}
+.customer-loading-profile > div:last-child > .skeleton-line {
+  width: min(240px, 100%);
+}
+.customer-loading-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.customer-loading-nav > span {
+  flex: 1;
+}
+.customer-loading-field {
+  height: 52px;
+  border-radius: var(--radius-control);
+}
+.customer-loading-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+  margin-top: 24px;
+}
+@media (min-width: 1100px) {
+  .customer-loading-nav {
+    display: grid;
+    align-content: start;
+  }
+}
+@media (max-width: 600px) {
+  .customer-loading-fields { grid-template-columns: minmax(0, 1fr); }
 }
