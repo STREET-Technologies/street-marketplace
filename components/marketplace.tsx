@@ -1117,6 +1117,33 @@ function ProductGallery({
     </div>
   );
 }
+function ProductLoading({ optionsOnly = false }: { optionsOnly?: boolean }) {
+  return (
+    <div className="product-loading" role="status">
+      <span className="sr-only">
+        {optionsOnly ? "Updating product options and availability…" : "Loading product details…"}
+      </span>
+      <div aria-hidden="true">
+        {!optionsOnly && (
+          <div className="skeleton-copy">
+            <span className="skeleton-block skeleton-line skeleton-line--short" />
+            <span className="skeleton-block skeleton-line skeleton-line--title" />
+            <span className="skeleton-block skeleton-line" />
+          </div>
+        )}
+        <div className="skeleton-copy">
+          <span className="skeleton-block skeleton-line skeleton-line--short" />
+          <div className="product-loading-options">
+            {Array.from({ length: 4 }, (_, index) => (
+              <span className="skeleton-block" key={index} />
+            ))}
+          </div>
+          <span className="skeleton-block product-loading-action" />
+        </div>
+      </div>
+    </div>
+  );
+}
 function Product({
   params,
   preview,
@@ -1173,11 +1200,16 @@ function Product({
               <div className="product-title-row">
                 <h2>{preview.title}</h2>
               </div>
-              <LoadMessage {...state} />
+              {state.error ? <LoadMessage {...state} /> : <ProductLoading />}
             </div>
           </div>
-        ) : (
+        ) : state.error ? (
           <LoadMessage {...state} />
+        ) : (
+          <div className="product-detail">
+            <div className="skeleton-block product-loading-image" aria-hidden="true" />
+            <div className="detail-copy"><ProductLoading /></div>
+          </div>
         )
       ) : (
         <div className="product-detail">
@@ -1212,8 +1244,10 @@ function Product({
             {product.description && (
               <p className="product-description">{product.description}</p>
             )}
-            {state.refreshing || state.error ? (
+            {state.error ? (
               <LoadMessage {...state} />
+            ) : state.refreshing ? (
+              <ProductLoading optionsOnly />
             ) : (
               <>
                 <ProductOptions

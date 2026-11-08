@@ -2540,6 +2540,34 @@ a.area-card,
   font-size: 24px;
   margin-bottom: 28px;
 }
+/* Reuse catalogue motion and colours while product details are fetched. */
+.product-loading {
+  padding-top: 12px;
+}
+.product-loading-options {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+.product-loading-options > span {
+  width: 48px;
+  height: 44px;
+  border-radius: var(--radius-control);
+}
+.product-loading-action {
+  height: 52px;
+  width: 100%;
+  border-radius: var(--radius-control);
+}
+.product-loading-image {
+  min-height: 570px;
+}
+@media (max-width: 760px) {
+  .product-loading-image {
+    min-height: 220px;
+    height: 38dvh;
+  }
+}
 .product-shop-link {
   display: inline-flex;
   align-items: center;
