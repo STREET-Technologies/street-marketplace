@@ -1,6 +1,6 @@
 "use client";
 import { productPriceSummary } from "../lib/product-presentation";
-import { resultsScrollTarget } from "../lib/browse-navigation";
+import { revealBrowseContent } from "../lib/browse-navigation";
 import StockStatus from "./stock-status";
 import { ProductOptions } from "./product-options";
 import {
@@ -536,25 +536,9 @@ function CategoryFilter({
   const row = useRef<HTMLElement>(null);
   const pendingCategory = useRef<string | null>(null);
   const revealResults = () => {
-    if (!matchMedia("(min-width: 1100px)").matches) return;
-    const results = row.current
+    revealBrowseContent(row.current
       ?.closest(".browse-layout")
-      ?.querySelector(".browse-results");
-    const header = document.querySelector(".marketplace-header");
-    if (!results || !header) return;
-    const top = resultsScrollTarget(
-      results.getBoundingClientRect().top,
-      header.getBoundingClientRect().bottom,
-      innerHeight,
-      scrollY,
-    );
-    if (top !== null)
-      window.scrollTo({
-        top,
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "instant"
-          : "smooth",
-      });
+      ?.querySelector(".browse-results"));
   };
   const selectedCategory = params[filterKey] || "";
   useEffect(() => {

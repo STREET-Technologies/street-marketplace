@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+
+import { revealBrowseContent } from "../lib/browse-navigation";
 
 export default function CustomerTabs({
   label,
@@ -15,6 +17,16 @@ export default function CustomerTabs({
   onChange: (key: string) => void;
 }) {
   const id = useId();
+  const layout = useRef<HTMLDivElement>(null);
+  const [selectionRequest, setSelectionRequest] = useState(0);
+  const select = (key: string) => {
+    onChange(key);
+    setSelectionRequest((request) => request + 1);
+  };
+  useLayoutEffect(() => {
+    if (!sidebar || !selectionRequest) return;
+    revealBrowseContent(layout.current?.querySelector('[role="tabpanel"]:not([hidden])'));
+  }, [value, selectionRequest, sidebar]);
   const [vertical, setVertical] = useState(false);
   useEffect(() => {
     if (!sidebar) return;
@@ -25,7 +37,7 @@ export default function CustomerTabs({
     return () => media.removeEventListener("change", update);
   }, [sidebar]);
   return (
-    <div className={sidebar ? "browse-layout customer-tab-layout" : undefined}>
+    <div ref={layout} className={sidebar ? "browse-layout customer-tab-layout" : undefined}>
       <div className="customer-tabs" role="tablist" aria-label={label} aria-orientation={vertical ? "vertical" : "horizontal"}>
         {tabs.map((tab, index) => (
           <button
@@ -36,7 +48,7 @@ export default function CustomerTabs({
             aria-controls={`${id}-panel-${tab.key}`}
             aria-selected={value === tab.key}
             tabIndex={value === tab.key ? 0 : -1}
-            onClick={() => onChange(tab.key)}
+            onClick={() => select(tab.key)}
             onKeyDown={(event) => {
               const next =
                 event.key === (vertical ? "ArrowDown" : "ArrowRight")
@@ -50,8 +62,8 @@ export default function CustomerTabs({
                         : -1;
               if (next < 0) return;
               event.preventDefault();
-              onChange(tabs[next].key);
-              document.getElementById(`${id}-tab-${tabs[next].key}`)?.focus();
+              select(tabs[next].key);
+              document.getElementById(`${id}-tab-${tabs[next].key}`)?.focus({ preventScroll: true });
             }}
           >
             {tab.label}
